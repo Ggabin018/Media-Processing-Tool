@@ -13,7 +13,8 @@ def exec(command):
         command,
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,
-        text=True
+        text=True,
+        shell=True
     )
 
     # Threads to handle stdout and stderr

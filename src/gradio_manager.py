@@ -21,6 +21,8 @@ import sys
 import tkinter
 from tkinter import filedialog
 
+from script_js import js
+
 temp_dir = tempfile.gettempdir()
 
 def reg_path(path:str):
@@ -45,52 +47,55 @@ def on_change_file(src_path):
 
 def cut_video(video_path, start, end):
     try:
-        path = video_cut(reg_path(video_path), start=start, end=end)
+        video_path = reg_path(video_path)
+        if not os.path.exists(video_path):
+            raise Exception(f"{path} does not exit")
+        path = video_cut(video_path, start=start, end=end)
         return path, on_change_file(path)
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
 
 def convert_video_to_mp3(video_path):
     try:
         path = convertir_video_to_mp3(reg_path(video_path))
         return path, on_change_file(path)
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
     
 def convert_video_to_video(video_path, ext): # TODO
     try:
         path = conv_video_to_video(reg_path(video_path), ext)
         return path
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
 
 
 def replace_audio(video_path, audio_path): # TODO
     try:
         return audio_replace(video_path, audio_path)
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
     
 def extract_audio_from_dir(video_dir_path): #TODO
     try:
         dir_audio_extract(video_dir_path)
         return "Audio extracted from all videos in the directory"
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
     
 def batch_audio_replace(video_dir_path, audio_dir_path): # TODO
     try:
         dir_audio_replace(video_dir_path, audio_dir_path)
         return "Audio replaced in all videos in the directory"
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
 
 def batch_audio_combine(video_dir_path, audio_dir_path): # TODO
     try:
         dir_audio_combine(video_dir_path, audio_dir_path)
         return "Audios combined successfully in all videos"
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None
     
 def apply_option():
     return f"Save {datetime.datetime.now()}"
@@ -110,7 +115,7 @@ def get_file(default_path):
 
 class GradioManager:
     def __init__(self):
-        with gr.Blocks(title="Media Processing Tool") as self.interface:
+        with gr.Blocks(title="Media Processing Tool", head=js) as self.interface:
             gr.Markdown("# Video & Audio Processing Tool")
         
             with gr.Tab("Single Video"):
