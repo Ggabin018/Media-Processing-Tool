@@ -2,6 +2,7 @@ import os
 from pydub import AudioSegment
 from moviepy.editor import VideoFileClip, AudioFileClip
 from video_modif import get_video_duration
+from thread import exec
 
 
 def apply_reverb(input_path):
@@ -125,7 +126,7 @@ def get_audio_duration(audio_path):
     return duration
 
 
-def audio_replace(video_path, audio_path):
+def audio_replace(video_path, audio_path, name_add="__replace.mp4")->str:
     """
     replace audio with compression
     :param video_path:
@@ -136,21 +137,23 @@ def audio_replace(video_path, audio_path):
     if get_audio_duration(audio_path) < get_video_duration(video_path):
         multiply_and_write_audio(audio_path, audio_path, 2)
 
-    output_path = os.path.splitext(video_path)[0] + "__new_audio.mp4"
+    output_path = os.path.splitext(video_path)[0] + name_add
 
     ffmpeg_command = (
-        f'ffmpeg -i "{video_path}" -i "{audio_path}" -c:v h264_nvenc -c:a aac -strict experimental '
+        f'ffmpeg -y -i "{video_path}" -i "{audio_path}" -c:v h264_nvenc -c:a aac -strict experimental '
         f'-b:v 8000k -b:a 192k -map 0:v:0 -map 1:a -shortest "{output_path}"'
     )
-    os.system(ffmpeg_command)
+    exec(ffmpeg_command)
+    return output_path
 
 
-def audio_combine(video_path, audio_path):
+def audio_combine(video_path, audio_path)->str:
     """
     combine un fichier vidéo avec un fichier audio
     :param video_path: path fichier vidéo
     :param audio_path: path fichier audio
     """
     new_audio_path = mix_audio_and_export(video_path, audio_path)
-    audio_replace(video_path, new_audio_path)
+    output_path = audio_replace(video_path, new_audio_path, "__combine.mp4")
     os.remove(new_audio_path)
+    return output_path

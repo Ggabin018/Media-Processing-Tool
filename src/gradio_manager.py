@@ -3,18 +3,21 @@ import gradio as gr
 from dir_manip import (
     dir_audio_extract,
     dir_audio_replace, 
-    dir_audio_combine
+    dir_audio_combine,
+    dir_convert_video_to_video
 )
 from convertisseur import convertir_video_to_mp3, conv_video_to_video
 from video_modif import video_cut
-from audio_modif import audio_replace
+from audio_modif import audio_replace, audio_combine
 
+# use in save
 import datetime
 
 from shutil import copy
 import os
 import tempfile
 
+# use to clean up at the end
 import signal
 import sys
 
@@ -22,6 +25,8 @@ import tkinter
 from tkinter import filedialog
 
 from script_js import js
+
+from DraggableListbox import WindowDragListBox
 
 temp_dir = tempfile.gettempdir()
 
@@ -36,7 +41,7 @@ def clean(sig, frame):
 signal.signal(signal.SIGINT, clean)
 signal.signal(signal.SIGTERM, clean)
 
-# region Gradio functions --------------------------------------------------
+# region Single File functions
 
 def on_change_file(src_path):
     global dst_path
@@ -50,6 +55,7 @@ def cut_video(video_path, start, end):
         video_path = reg_path(video_path)
         if not os.path.exists(video_path):
             raise Exception(f"{path} does not exit")
+        
         path = video_cut(video_path, start=start, end=end)
         return path, on_change_file(path)
     except Exception as e:
@@ -62,41 +68,43 @@ def convert_video_to_mp3(video_path):
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def convert_video_to_video(video_path, ext): # TODO
+def convert_video_to_video(video_path, ext):
     try:
         path = conv_video_to_video(reg_path(video_path), ext)
         return path
     except Exception as e:
         return f"Error: {str(e)}", None
 
+def modify_audio(video_path, audio_path, opt="replace"): # TODO
+    try:
+        if opt == "replace":
+            path = audio_replace(reg_path(video_path), reg_path(audio_path))
+        else:
+            path = audio_combine(reg_path(video_path), reg_path(audio_path))
+        return path, on_change_file(path)
+    except Exception as e:
+        return f"Error: {str(e)}", None
+    
+#endregion
 
-def replace_audio(video_path, audio_path): # TODO
+# region Multiples Files functions
+
+def extract_audio_from_dir(video_dir_path):
     try:
-        return audio_replace(video_path, audio_path)
+        return dir_audio_extract(reg_path(video_dir_path))
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def extract_audio_from_dir(video_dir_path): #TODO
+def batch_audio_modifier(video_dir_path, audio_dir_path, opt="replace"):
     try:
-        dir_audio_extract(video_dir_path)
-        return "Audio extracted from all videos in the directory"
-    except Exception as e:
-        return f"Error: {str(e)}", None
-    
-def batch_audio_replace(video_dir_path, audio_dir_path): # TODO
-    try:
-        dir_audio_replace(video_dir_path, audio_dir_path)
-        return "Audio replaced in all videos in the directory"
+        if opt == "replace":
+            return dir_audio_replace(video_dir_path, audio_dir_path)
+        return dir_audio_combine(video_dir_path, audio_dir_path)
     except Exception as e:
         return f"Error: {str(e)}", None
 
-def batch_audio_combine(video_dir_path, audio_dir_path): # TODO
-    try:
-        dir_audio_combine(video_dir_path, audio_dir_path)
-        return "Audios combined successfully in all videos"
-    except Exception as e:
-        return f"Error: {str(e)}", None
-    
+# endregion 
+
 def apply_option():
     return f"Save {datetime.datetime.now()}"
 
@@ -110,8 +118,15 @@ def get_file(default_path):
         return default_path
     return file_path.name
 
-# endregion 
+def get_dir(default_path):
+    root = tkinter.Tk()
+    root.withdraw()
 
+    dir_path = filedialog.askdirectory()
+    root.destroy()
+    if dir_path is None:
+        return default_path
+    return dir_path
 
 class GradioManager:
     def __init__(self):
@@ -131,7 +146,7 @@ class GradioManager:
                         with gr.Column():
                             cut_output = gr.Textbox(label="Result", interactive=False)
                             cut_video_output = gr.Video(autoplay=True)
-                    
+
                     btn_chose_video_to_cut.click(get_file,inputs=video_input, outputs=video_input)
                     cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time], outputs=[cut_output, cut_video_output])
 
@@ -163,48 +178,65 @@ class GradioManager:
                     btn_chose_video_to_convert.click(get_file,inputs=video_to_convert, outputs=video_to_convert)
                     conv_btn.click(convert_video_to_video, inputs=[video_to_convert, chose_ext], outputs=conv_output)
                 
-                with gr.Tab("Replace Audio in Video"):
+                with gr.Tab("Modify Audio in Video"):
                     with gr.Row():
                         with gr.Column():
-                            video_path_input = gr.Textbox(label="Video Path")
-                            audio_path_input = gr.Textbox(label="Audio Path")
-                            replace_audio_btn = gr.Button("Replace Audio")
+                            with gr.Row(equal_height=True):
+                                video_path_input = gr.Textbox(label="Video Path", scale=8)
+                                btn_cv = gr.Button("📂", scale=1)
+                            with gr.Row(equal_height=True):
+                                audio_path_input = gr.Textbox(label="Audio Path", scale=8)
+                                btn_ca = gr.Button("📂", scale=1)
+                            chose_opt=gr.Dropdown(label="Select a mod", choices=["replace", "combine"])
+                            replace_audio_btn = gr.Button("Modify Audio")
                         with gr.Column():
-                            replace_audio_output = gr.Textbox(label="Result", interactive=False)
+                            replace_text_output = gr.Textbox(label="Result", interactive=False)
                             replace_video_output = gr.Video(autoplay=True)
                     
-                    replace_audio_btn.click(replace_audio, inputs=[video_path_input, audio_path_input], outputs=replace_audio_output)
-                    replace_audio_output.change(on_change_file, inputs=replace_audio_output, outputs=replace_video_output)
+                    btn_cv.click(get_file,inputs=video_path_input, outputs=video_path_input)
+                    btn_ca.click(get_file,inputs=audio_path_input, outputs=audio_path_input)
+                    replace_audio_btn.click(modify_audio, inputs=[video_path_input, audio_path_input, chose_opt], outputs=[replace_text_output, replace_video_output])
             
-            with gr.Tab("Multiples Videos"):
+            with gr.Tab("Directory"):
                 with gr.Tab("Extract Audio from Directory"):
-                    dir_input = gr.Textbox(label="Directory Path")
+                    with gr.Row(equal_height=True):
+                        dir_input = gr.Textbox(label="Directory Path", scale=8)
+                        btn_ask_dir = gr.Button("📂", scale=1)
                     extract_btn = gr.Button("Extract Audio")
                     extract_output = gr.Textbox(label="Result")
                     
+                    btn_ask_dir.click(get_dir,inputs=dir_input, outputs=dir_input)
                     extract_btn.click(extract_audio_from_dir, inputs=dir_input, outputs=extract_output)
                 
-                with gr.Tab("Batch Replace Audio"):
-                    video_dir_input = gr.Textbox(label="Video Directory Path")
-                    audio_dir_input = gr.Textbox(label="Audio Directory Path")
-                    batch_replace_audio_btn = gr.Button("Batch Replace Audio")
+                with gr.Tab("Modify audio"):
+                    with gr.Row(equal_height=True):
+                        video_dir_input = gr.Textbox(label="Video Directory Path", scale=8)
+                        btn_video_dir_input= gr.Button("📂", scale=1)
+                    with gr.Row(equal_height=True):
+                        audio_dir_input = gr.Textbox(label="Audio Directory Path", scale=8)
+                        btn_audio_dir_input= gr.Button("📂", scale=1)
+                    dir_chose_opt=gr.Dropdown(label="Select a mod", choices=["replace", "combine"])
+                    batch_replace_audio_btn = gr.Button("Batch Modify Audio")
                     batch_replace_audio_output = gr.Textbox(label="Result")
                     
-                    batch_replace_audio_btn.click(batch_audio_replace, inputs=[video_dir_input, audio_dir_input], outputs=batch_replace_audio_output)
-                
-                with gr.Tab("Batch Combine Audio"):
-                    combine_video_dir_input = gr.Textbox(label="Video Directory Path")
-                    combine_audio_dir_input = gr.Textbox(label="Audio Directory Path")
-                    batch_combine_audio_btn = gr.Button("Batch Combine Audio")
-                    batch_combine_audio_output = gr.Textbox(label="Result")
-                    
-                    batch_combine_audio_btn.click(batch_audio_combine, inputs=[combine_video_dir_input, combine_audio_dir_input], outputs=batch_combine_audio_output)
+                    btn_video_dir_input.click(get_dir,inputs=video_dir_input, outputs=video_dir_input)
+                    btn_audio_dir_input.click(get_dir,inputs=audio_dir_input, outputs=audio_dir_input)
+                    batch_replace_audio_btn.click(batch_audio_modifier, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
 
+            with gr.Tab("Multiples Videos"):
+                with gr.Tab("Convert Video to MP3"):
+                    gr.Markdown("# TODO")
+                with gr.Tab("Convert Video to Video"):
+                    gr.Markdown("# TODO")
+                with gr.Tab("Modify Audio in Video"):
+                    gr.Markdown("# TODO")
+            
             with gr.Tab("Options"):
                 save_btn = gr.Button("Save options")
                 save_output = gr.Textbox(label="")
 
                 save_btn.click(apply_option, inputs=[], outputs=save_output)
+
 
     def launch(self):
         self.interface.launch(inbrowser=True)

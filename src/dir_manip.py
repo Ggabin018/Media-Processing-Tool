@@ -41,20 +41,22 @@ def convertir_videos_dossier_parent(dossier_parent):
     except Exception as e:
         print(f"Erreur lors de la conversion des vidéos dans le dossier parent. Erreur : {str(e)}")
 
-def dir_audio_extract(videos_dir):
+def dir_audio_extract(videos_dir)->str:
     """
     extrait les audios des vidéos
     :param videos_dir: dossier contenant les vidéos
     """
-
+    res = []
     def process_file(file):
         path_mp4 = os.path.join(videos_dir, file)
-        convertir_video_to_mp3(path_mp4)
+        res.append(convertir_video_to_mp3(path_mp4))
 
     files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, files)
+
+    return '\n'.join(res)
 
 def dir_audio_combine(videos_dir, audio_dir):
     """
@@ -62,18 +64,20 @@ def dir_audio_combine(videos_dir, audio_dir):
     :param videos_dir: dossier contenant les vidéos
     :param audio_dir: dossier contenant les audios à superposer
     """
+    res = []
     audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if file.lower().endswith(".mp3")]
 
     def process_file(file):
         path_mp4 = os.path.join(videos_dir, file)
         audio_to_combine = random.choice(audio_list)
-        audio_combine(path_mp4, audio_to_combine)
+        res.append(audio_combine(path_mp4, audio_to_combine))
 
     files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, files)
 
+    return '\n'.join(res)
 
 def dir_audio_replace(videos_dir, audio_dir):
     """
@@ -82,18 +86,20 @@ def dir_audio_replace(videos_dir, audio_dir):
     :param videos_dir: dossier contenant les vidéos
     :param audio_dir: dossier contenant les audios à superposer
     """
+    res = []
     audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if file.lower().endswith(".mp3")]
 
     def process_file(file):
         path_mp4 = os.path.join(videos_dir, file)
         audio_to_combine = random.choice(audio_list)
-        audio_replace(path_mp4, audio_to_combine)
+        res.append(audio_replace(path_mp4, audio_to_combine))
 
     files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, files)
 
+    return '\n'.join(res)
 
 def dir_audio_replace_no_thread(videos_dir, audio_dir):
     """
@@ -132,10 +138,13 @@ def rename_files(input_dir):
             os.rename(old_path, new_path)
 
 def dir_convert_video_to_video(videos_dir, ext):
+    res = []
     files = [os.path.join(videos_dir, file) for file in os.listdir(videos_dir) if file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.webm'))]
     
     def process_file(file):
-            conv_video_to_video(file, ext)
+            res.append(conv_video_to_video(file, ext))
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, files)
+
+    return '\n'.join(res)

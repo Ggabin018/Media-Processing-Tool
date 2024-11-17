@@ -43,7 +43,7 @@ def convertir_en_1080p(video_path, output_folder, target_bitrate=8000):
         print(f"Conversion échouée pour la vidéo {video_path}. Erreur : {str(e)}")
 
 
-def convertir_video_to_mp3(video_path, start_time=0, end_time=None):
+def convertir_video_to_mp3(video_path, start_time=0, end_time=None)->str:
     """ mp4 vers mp3"""
     # Charger la vidéo
     video_clip = VideoFileClip(video_path)
@@ -64,7 +64,7 @@ def convertir_video_to_mp3(video_path, start_time=0, end_time=None):
 
     return mp3_path
 
-def conv_video_to_video(video_path, ext):
+def conv_video_to_video(video_path, ext)->str:
     output_video = os.path.splitext(video_path)[0] + "." + ext
     ffmpeg_command = (
         f'ffmpeg -y -i "{video_path}" -c copy "{output_video}"'
