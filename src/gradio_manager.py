@@ -111,7 +111,6 @@ def apply_option():
 
 def get_file(default_path):
     root = tkinter.Tk()
-    root.size=(0,0)
     root.withdraw()
     root.wm_attributes('-topmost', 1)
     
@@ -125,6 +124,7 @@ def get_file(default_path):
 def get_dir(default_path):
     root = tkinter.Tk()
     root.withdraw()
+    root.wm_attributes('-topmost', 1)
 
     dir_path = filedialog.askdirectory()
     root.destroy()
