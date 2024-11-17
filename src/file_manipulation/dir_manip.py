@@ -1,10 +1,9 @@
-from convertisseur import convertir_en_1080p
-from video_modif import video_upgrade_quality
 import os
 import random
 from concurrent.futures import ThreadPoolExecutor
-from audio_modif import audio_combine, audio_replace
-from convertisseur import convertir_video_to_mp3, conv_video_to_video
+
+from file_manipulation.audio_modif import audio_combine, audio_replace
+from file_manipulation.convertisseur import convertir_en_1080p, convertir_video_to_mp3, conv_video_to_video
 
 
 def convertir_videos_dossier(dossier_path):

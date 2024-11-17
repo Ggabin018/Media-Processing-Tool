@@ -1,7 +1,7 @@
 import os
 from moviepy.video.io.VideoFileClip import VideoFileClip
-from video_modif import get_resolution
 
+from file_manipulation.video_modif import get_resolution
 from thread import exec
 
 

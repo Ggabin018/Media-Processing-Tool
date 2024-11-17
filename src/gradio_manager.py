@@ -1,14 +1,15 @@
 import gradio as gr
 
-from dir_manip import (
+from file_manipulation.dir_manip import (
     dir_audio_extract,
     dir_audio_replace, 
     dir_audio_combine,
     dir_convert_video_to_video
 )
-from convertisseur import convertir_video_to_mp3, conv_video_to_video
-from video_modif import video_cut
-from audio_modif import audio_replace, audio_combine
+from file_manipulation.video_modif import video_cut
+from file_manipulation.audio_modif import audio_replace, audio_combine
+from file_manipulation.convertisseur import convertir_video_to_mp3, conv_video_to_video
+
 
 # use in save
 import datetime
@@ -110,9 +111,12 @@ def apply_option():
 
 def get_file(default_path):
     root = tkinter.Tk()
+    root.size=(0,0)
     root.withdraw()
-
+    root.wm_attributes('-topmost', 1)
+    
     file_path = filedialog.askopenfile()
+    
     root.destroy()
     if file_path is None:
         return default_path
@@ -222,6 +226,13 @@ class GradioManager:
                     btn_video_dir_input.click(get_dir,inputs=video_dir_input, outputs=video_dir_input)
                     btn_audio_dir_input.click(get_dir,inputs=audio_dir_input, outputs=audio_dir_input)
                     batch_replace_audio_btn.click(batch_audio_modifier, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
+
+                with gr.Tab("Compress to"):
+                    gr.Markdown("# TODO")
+                    with gr.Row(equal_height=True):
+                        video_dir_input = gr.Textbox(label="Video Directory Path", scale=8)
+                        btn_video_dir_input= gr.Button("📂", scale=1)
+                    aim_bitrate = gr.Textbox(label="Bitrate wanted: default=8000")
 
             with gr.Tab("Multiples Videos"):
                 with gr.Tab("Convert Video to MP3"):

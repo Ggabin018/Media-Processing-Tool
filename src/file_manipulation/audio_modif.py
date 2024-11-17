@@ -1,7 +1,8 @@
 import os
 from pydub import AudioSegment
 from moviepy.editor import VideoFileClip, AudioFileClip
-from video_modif import get_video_duration
+
+from file_manipulation.video_modif import get_video_duration
 from thread import exec
 
 
