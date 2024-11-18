@@ -1,14 +1,16 @@
 import subprocess
 import threading
 
-def stream_output(stream, output_type):
-    # Add color for STDERR (red) and default for STDOUT
-    color_start = '\033[91m' if output_type == 'STDERR' else '\033[0m'  # Red for STDERR
-    color_end = '\033[0m'
+def stream_output(stream, output_type:str)->None:
+    # STDERR (red) and STDOUT (white)
+    red='\033[91m'
+    white='\033[0m'
+    color_start = red if output_type == 'STDERR' else white
+    color_end = white
     for line in iter(stream.readline, ''):
         print(f"{color_start}[{output_type}] {line}{color_end}", end='')
 
-def exec(command):
+def exec(command:str)->None:
     process = subprocess.Popen(
         command,
         stdout=subprocess.PIPE,

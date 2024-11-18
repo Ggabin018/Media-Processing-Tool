@@ -6,18 +6,25 @@ from file_manipulation.video_modif import get_video_duration
 from thread import exec
 
 
-def apply_reverb(input_path):
+def apply_reverb(input_path:str)->str:
+    """
+    add reverb to a copy of input file
+    """
     reverb_parameters = "0.8:0.9:1000:0.6"
     output_path = os.path.splitext(input_path)[0] + "__reverb.mp3"
 
-    # Construire la commande FFmpeg
     ffmpeg_command = (
         f'ffmpeg -y -i "{input_path}" -af "aecho={reverb_parameters}" -c:a libmp3lame -q:a 2 "{output_path}"'
     )
     os.system(ffmpeg_command)
 
+    return output_path
 
-def apply_deep_voice(input_path, sampling_rate=0.8):
+
+def apply_deep_voice(input_path:str, sampling_rate:float=0.8)->str:
+    """
+    add deep effect to a copy of input file
+    """
     output_path = os.path.splitext(input_path)[0] + f"__deep{sampling_rate}.mp3"
 
     ffmpeg_command = (
@@ -26,8 +33,10 @@ def apply_deep_voice(input_path, sampling_rate=0.8):
 
     os.system(ffmpeg_command)
 
+    return output_path
 
-def multiply_and_write_audio(input_audio_path, output_audio_path, multiplier):
+
+def multiply_and_write_audio(input_audio_path:str, output_audio_path:str, multiplier:int)->None:
     """
     multiplie une piste audio d'un fichier d'entrée dans un fichier de sortie
     :param input_audio_path: path fichier d'entrée
@@ -58,7 +67,7 @@ def merge_audio(audio1_path, audio2_path, output_mp3_path):
     overlay.export(output_mp3_path, format="mp3")
 
 
-def mix_audio_and_export(video_path, audio_path):
+def mix_audio_and_export(video_path:str, audio_path:str)->str:
     """
     fusionne la piste audio de la vidéo avec celle en deuxième param
     :param video_path: path piste vidéo
@@ -68,25 +77,22 @@ def mix_audio_and_export(video_path, audio_path):
     try:
         output_mp3_path = os.path.splitext(video_path)[0] + "__mix_sound.mp3"
 
-        # Charger la vidéo
         video_clip = VideoFileClip(video_path)
 
-        # Charger les pistes audio
         audio_clip_video = AudioFileClip(video_path)
         audio_clip_from_audiofile = AudioFileClip(audio_path)
 
-        # Adapter la durée de la piste audio externe
         if audio_clip_from_audiofile.duration <= audio_clip_video.duration:
-            # Si la piste audio externe est plus courte, la multiplier
+            # multiply audio if shorter
             mul = audio_clip_video.duration // audio_clip_from_audiofile.duration + 1
             audio_clip_from_audiofile.close()
             multiply_and_write_audio(audio_path, audio_path, mul)
             audio_clip_from_audiofile = AudioFileClip(audio_path)
 
-        # la piste audio externe est plus longue, donc on la tronque
+        # troncate audio file if too long
         audio_clip_from_audiofile = audio_clip_from_audiofile.subclip(0, audio_clip_video.duration)
 
-        # Superposer les pistes audio
+        # cut to video duration
         audio_clip_video.set_duration(video_clip.duration)
         audio_clip_from_audiofile.set_duration(video_clip.duration)
 
@@ -94,10 +100,9 @@ def mix_audio_and_export(video_path, audio_path):
         audio_clip_video.write_audiofile(video_path + ".mp3", codec='mp3')
         audio_clip_from_audiofile.write_audiofile(audio_path + ".mp3", codec='mp3')
 
-        # Exporter le mélange audio au format MP3
+        # create new audio
         merge_audio(video_path + ".mp3", audio_path + ".mp3", output_mp3_path)
 
-        # Fermer les clips
         video_clip.close()
         audio_clip_video.close()
         audio_clip_from_audiofile.close()
@@ -110,7 +115,7 @@ def mix_audio_and_export(video_path, audio_path):
     except Exception as e:
         print(f"Erreur lors du mélange audio et de l'export : {str(e)}")
 
-def get_audio_duration(audio_path):
+def get_audio_duration(audio_path:str)->float:
     """
     :param audio_path: chemin absolu du fichier audio
     :return: durée du fichier audio en secondes

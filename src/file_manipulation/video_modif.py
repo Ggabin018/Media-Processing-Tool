@@ -1,7 +1,7 @@
 import os
 from thread import exec
 
-def get_video_duration(video_path):
+def get_video_duration(video_path:str)->float:
     """
     :param video_path: chemin absolu de la vidéo
     :return: durée de la vidéo en secondes
@@ -17,7 +17,7 @@ def get_video_duration(video_path):
 
     return duration
 
-def get_resolution(video_path):
+def get_resolution(video_path:str)->tuple[int,int]:
     """
     :param video_path: chemin abs vidéo
     :return: largeur, hauteur de la vidéo
@@ -34,7 +34,7 @@ def get_resolution(video_path):
     return width, height
 
 
-def video_cut(input_video, start=None, end=None):
+def video_cut(input_video:str, start=None, end=None)->str:
     """
     créer un extrait d'une vidéo
     :param input_video: path de la video
@@ -54,7 +54,7 @@ def video_cut(input_video, start=None, end=None):
     return output_video
 
 
-def video_upgrade_quality(input_video, mul):
+def video_upgrade_quality(input_video:str, mul:int)->str:
     """
     multiplie la résolution de la vidéo d'entrer
     WARNING BUG peut crash sur certaines videos

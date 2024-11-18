@@ -31,7 +31,7 @@ from DraggableListbox import WindowDragListBox
 
 temp_dir = tempfile.gettempdir()
 
-def reg_path(path:str):
+def reg_path(path:str)->str:
     return path.replace('"', '')
 
 dst_path = None
@@ -42,16 +42,16 @@ def clean(sig, frame):
 signal.signal(signal.SIGINT, clean)
 signal.signal(signal.SIGTERM, clean)
 
-# region Single File functions
+# region Single File
 
-def on_change_file(src_path):
+def on_change_file(src_path:str)->str:
     global dst_path
     if dst_path != None and os.path.exists(dst_path):
         os.remove(dst_path)
     dst_path=os.path.join(temp_dir, os.path.basename(src_path))
     return copy(src_path, dst_path)
 
-def cut_video(video_path, start, end):
+def cut_video(video_path:str, start, end)->tuple[str, str]:
     try:
         video_path = reg_path(video_path)
         if not os.path.exists(video_path):
@@ -62,21 +62,21 @@ def cut_video(video_path, start, end):
     except Exception as e:
         return f"Error: {str(e)}", None
 
-def convert_video_to_mp3(video_path):
+def convert_video_to_mp3(video_path:str)->tuple[str, str]:
     try:
         path = convertir_video_to_mp3(reg_path(video_path))
         return path, on_change_file(path)
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def convert_video_to_video(video_path, ext):
+def convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
     try:
         path = conv_video_to_video(reg_path(video_path), ext)
         return path
     except Exception as e:
         return f"Error: {str(e)}", None
 
-def modify_audio(video_path, audio_path, opt="replace"): # TODO
+def modify_audio(video_path:str, audio_path:str, opt:str="replace")->tuple[str, str]:
     try:
         if opt == "replace":
             path = audio_replace(reg_path(video_path), reg_path(audio_path))
@@ -88,28 +88,62 @@ def modify_audio(video_path, audio_path, opt="replace"): # TODO
     
 #endregion
 
-# region Multiples Files functions
+# region Directory
 
-def extract_audio_from_dir(video_dir_path):
+def dir_extract_audio(video_dir_path:str)->tuple[str, str]:
     try:
         return dir_audio_extract(reg_path(video_dir_path))
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def batch_audio_modifier(video_dir_path, audio_dir_path, opt="replace"):
+def dir_audio_modifier(video_dir_path:str, audio_dir_path:str, opt:str="replace")->tuple[str, str]:
     try:
         if opt == "replace":
             return dir_audio_replace(video_dir_path, audio_dir_path)
         return dir_audio_combine(video_dir_path, audio_dir_path)
     except Exception as e:
         return f"Error: {str(e)}", None
+    
+def dir_vid2vid(dir_path:str, ext:str)->tuple[str, str]:
+    try:
+        return dir_convert_video_to_video(dir_path, ext)
+    except Exception as e:
+        return f"Error: {str(e)}", None
 
 # endregion 
 
-def apply_option():
+# region Multiples Files
+
+def batch_convert_video_to_mp3(video_path:str)->tuple[str, str]:
+    try:
+        path = convertir_video_to_mp3(reg_path(video_path))
+        return path, on_change_file(path)
+    except Exception as e:
+        return f"Error: {str(e)}", None
+    
+def batch_convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
+    try:
+        path = conv_video_to_video(reg_path(video_path), ext)
+        return path
+    except Exception as e:
+        return f"Error: {str(e)}", None
+
+def batch_modify_audio(video_path:list[str], audio_path:list[str], opt:str="replace")->tuple[str, str]:
+    try:
+        if opt == "replace":
+            path = audio_replace(reg_path(video_path), reg_path(audio_path))
+        else:
+            path = audio_combine(reg_path(video_path), reg_path(audio_path))
+        return path, on_change_file(path)
+    except Exception as e:
+        return f"Error: {str(e)}", None
+
+# endregion
+
+def apply_option()->str:
     return f"Save {datetime.datetime.now()}"
 
-def get_file(default_path):
+def get_file(default_path:str)->str:
     root = tkinter.Tk()
     root.withdraw()
     root.wm_attributes('-topmost', 1)
@@ -121,7 +155,7 @@ def get_file(default_path):
         return default_path
     return file_path.name
 
-def get_dir(default_path):
+def get_dir(default_path:str)->str:
     root = tkinter.Tk()
     root.withdraw()
     root.wm_attributes('-topmost', 1)
@@ -210,7 +244,7 @@ class GradioManager:
                     extract_output = gr.Textbox(label="Result")
                     
                     btn_ask_dir.click(get_dir,inputs=dir_input, outputs=dir_input)
-                    extract_btn.click(extract_audio_from_dir, inputs=dir_input, outputs=extract_output)
+                    extract_btn.click(dir_extract_audio, inputs=dir_input, outputs=extract_output)
                 
                 with gr.Tab("Modify audio"):
                     with gr.Row(equal_height=True):
@@ -225,7 +259,7 @@ class GradioManager:
                     
                     btn_video_dir_input.click(get_dir,inputs=video_dir_input, outputs=video_dir_input)
                     btn_audio_dir_input.click(get_dir,inputs=audio_dir_input, outputs=audio_dir_input)
-                    batch_replace_audio_btn.click(batch_audio_modifier, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
+                    batch_replace_audio_btn.click(dir_audio_modifier, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
 
                 with gr.Tab("Compress to"):
                     gr.Markdown("# TODO")
