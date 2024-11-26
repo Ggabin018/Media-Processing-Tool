@@ -129,7 +129,7 @@ def get_audio_duration(audio_path:str)->float:
 
 def audio_replace(video_path:str, audio_path:str, name_add:str="__replace.mp4", compress:bool=True)->str:
     """
-    replace audio
+    replace audio, compress by default
     :param video_path:
     :param audio_path:
     :return:

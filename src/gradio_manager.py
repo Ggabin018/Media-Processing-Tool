@@ -4,7 +4,8 @@ from file_manipulation.dir_manip import (
     dir_audio_extract,
     dir_audio_replace, 
     dir_audio_combine,
-    dir_convert_video_to_video
+    dir_convert_video_to_video,
+    compress_videos_dir
 )
 from file_manipulation.video_modif import video_cut, compress_video
 from file_manipulation.audio_modif import audio_replace, audio_combine
@@ -119,6 +120,12 @@ def dir_vid2vid(dir_path:str, ext:str)->tuple[str, str]:
         return dir_convert_video_to_video(dir_path, ext)
     except Exception as e:
         return f"Error: {str(e)}", None
+    
+def dir_compress(dir_path:str, bitrate:int=8000):
+    try:
+        return compress_videos_dir(dir_path, bitrate)
+    except Exception as e:
+        return f"Error: {str(e)}", None
 
 # endregion 
 
@@ -195,7 +202,7 @@ class GradioManager:
                             cut_video_btn = gr.Button("Cut Video")
                         with gr.Column():
                             cut_output = gr.Textbox(label="Result", interactive=False)
-                            cut_video_output = gr.Video(autoplay=True)
+                            cut_video_output = gr.Video()
 
                     btn_chose_video_to_cut.click(get_file,inputs=video_input, outputs=video_input)
                     cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time], outputs=[cut_output, cut_video_output])
@@ -209,7 +216,7 @@ class GradioManager:
                             convert_mp4_btn = gr.Button("Convert to MP3")
                         with gr.Column():
                             convert_mp4_output = gr.Textbox(label="Result", interactive=False)
-                            convert_audio_output = gr.Audio(autoplay=True)
+                            convert_audio_output = gr.Audio()
                     
                     btn_chose_mp4_video.click(get_file,inputs=video_mp4_input, outputs=video_mp4_input)
                     convert_mp4_btn.click(convert_video_to_mp3, inputs=video_mp4_input, outputs=[convert_mp4_output, convert_audio_output])
@@ -241,7 +248,7 @@ class GradioManager:
                             replace_audio_btn = gr.Button("Modify Audio")
                         with gr.Column():
                             replace_text_output = gr.Textbox(label="Result", interactive=False)
-                            replace_video_output = gr.Video(autoplay=True)
+                            replace_video_output = gr.Video()
                     
                     btn_cv.click(get_file,inputs=video_path_input, outputs=video_path_input)
                     btn_ca.click(get_file,inputs=audio_path_input, outputs=audio_path_input)
@@ -265,36 +272,49 @@ class GradioManager:
             
             with gr.Tab("Directory"):
                 with gr.Tab("Extract Audio from Directory"):
-                    with gr.Row(equal_height=True):
-                        dir_input = gr.Textbox(label="Directory Path", scale=8)
-                        btn_ask_dir = gr.Button("📂", scale=1)
-                    extract_btn = gr.Button("Extract Audio")
-                    extract_output = gr.Textbox(label="Result")
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                dir_input = gr.Textbox(label="Directory Path", scale=8)
+                                btn_ask_dir = gr.Button("📂", scale=1)
+                            extract_btn = gr.Button("Extract Audio")
+                        with gr.Column():
+                            extract_output = gr.Textbox(label="Result")
                     
                     btn_ask_dir.click(get_dir,inputs=dir_input, outputs=dir_input)
                     extract_btn.click(dir_extract_audio, inputs=dir_input, outputs=extract_output)
                 
                 with gr.Tab("Modify audio"):
-                    with gr.Row(equal_height=True):
-                        video_dir_input = gr.Textbox(label="Video Directory Path", scale=8)
-                        btn_video_dir_input= gr.Button("📂", scale=1)
-                    with gr.Row(equal_height=True):
-                        audio_dir_input = gr.Textbox(label="Audio Directory Path", scale=8)
-                        btn_audio_dir_input= gr.Button("📂", scale=1)
-                    dir_chose_opt=gr.Dropdown(label="Select a mod", choices=["replace", "combine"])
-                    batch_replace_audio_btn = gr.Button("Batch Modify Audio")
-                    batch_replace_audio_output = gr.Textbox(label="Result")
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                video_dir_input = gr.Textbox(label="Video Directory Path", scale=8)
+                                btn_video_dir_input= gr.Button("📂", scale=1)
+                            with gr.Row(equal_height=True):
+                                audio_dir_input = gr.Textbox(label="Audio Directory Path", scale=8)
+                                btn_audio_dir_input= gr.Button("📂", scale=1)
+                            dir_chose_opt=gr.Dropdown(label="Select a mod", choices=["replace", "combine"])
+                            batch_replace_audio_btn = gr.Button("Batch Modify Audio")
+                        with gr.Column():
+                            batch_replace_audio_output = gr.Textbox(label="Result")
                     
                     btn_video_dir_input.click(get_dir,inputs=video_dir_input, outputs=video_dir_input)
                     btn_audio_dir_input.click(get_dir,inputs=audio_dir_input, outputs=audio_dir_input)
                     batch_replace_audio_btn.click(dir_audio_modifier, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
 
                 with gr.Tab("Compress to"):
-                    gr.Markdown("# TODO")
-                    with gr.Row(equal_height=True):
-                        video_dir_input = gr.Textbox(label="Video Directory Path", scale=8)
-                        btn_video_dir_input= gr.Button("📂", scale=1)
-                    aim_bitrate = gr.Textbox(label="Bitrate wanted: default=8000")
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                video_dir_compress = gr.Textbox(label="Video Directory Path", scale=8)
+                                btn_video_dir_input= gr.Button("📂", scale=1)
+                            aim_bitrate = gr.Textbox(label="Bitrate wanted:", value=8000)
+                            btn_batch_compress = gr.Button("Batch compress video")
+                        with gr.Column():
+                            batch_compress_result = gr.Textbox(label="Result")
+
+                    btn_video_dir_input.click(get_dir, video_dir_compress, video_dir_compress)
+                    btn_batch_compress.click(dir_compress, [video_dir_compress, aim_bitrate], batch_compress_result)
 
             with gr.Tab("Multiples Videos"):
                 with gr.Tab("Convert Video to MP3"):
