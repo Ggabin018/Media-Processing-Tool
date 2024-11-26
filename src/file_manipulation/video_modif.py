@@ -6,38 +6,27 @@ def get_video_duration(video_path:str)->float:
     :param video_path: chemin absolu de la vidéo
     :return: durée de la vidéo en secondes
     """
-    # Commande FFmpeg pour obtenir la durée de la vidéo
     ffmpeg_command = f'ffprobe -v error -select_streams v:0 -show_entries format=duration -of csv=p=0 "{video_path}"'
 
-    # Exécution de la commande FFmpeg
     duration_info = os.popen(ffmpeg_command).read().strip()
 
-    # Conversion de la durée en float
-    duration = float(duration_info)
-
-    return duration
+    return float(duration_info)
 
 def get_resolution(video_path:str)->tuple[int,int]:
     """
     :param video_path: chemin abs vidéo
-    :return: largeur, hauteur de la vidéo
+    :return: width, height
     """
-    # Commande FFmpeg pour obtenir les informations sur la vidéo
     ffmpeg_command = f'ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=s=x:p=0 "{video_path}"'
 
-    # Exécution de la commande FFmpeg
     resolution_info = os.popen(ffmpeg_command).read()
 
-    # Extraction de la largeur et de la hauteur de la résolution
-    width, height = map(int, resolution_info.split('x'))
-
-    return width, height
+    return map(int, resolution_info.split('x'))
 
 
 def video_cut(input_video:str, start=None, end=None)->str:
     """
-    créer un extrait d'une vidéo
-    :param input_video: path de la video
+    cut a video from start to end
     :param start: format "HH:MM:SS"
     :param end: format "HH:MM:SS"
     """
@@ -54,16 +43,47 @@ def video_cut(input_video:str, start=None, end=None)->str:
     return output_video
 
 
-def video_upgrade_quality(input_video:str, mul:int)->str:
+def video_upscale(input_video:str, factor:int)->str:
     """
-    multiplie la résolution de la vidéo d'entrer
-    WARNING BUG peut crash sur certaines videos
-    :param input_video:
-    :param mul:
+    multiply the resolution of a video
+    BUG sometimes crash with specific video
     """
-    output_video = os.path.splitext(input_video)[0] + f"__up{mul}.mp4"
+    output_video = os.path.splitext(input_video)[0] + f"__up{factor}.mp4"
     ffmpeg_command = (
-        f'ffmpeg -i "{input_video}" -vf "scale=iw*{mul}:ih*{mul},unsharp=5:5:1.0:5:5:0.0, hqdn3d=luma_spatial=4:chroma_spatial=4:luma_tmp=4:chroma_tmp=4" -c:a copy "{output_video}"'
+        f'ffmpeg -i "{input_video}" -vf "scale=iw*{factor}:ih*{factor},unsharp=5:5:1.0:5:5:0.0, hqdn3d=luma_spatial=4:chroma_spatial=4:luma_tmp=4:chroma_tmp=4" -c:a copy "{output_video}"'
     )
     exec(ffmpeg_command)
     return output_video
+
+def compress_video(video_path:str, output_filename:str="", target_bitrate:int=8000):
+    """
+    convert in 1080p with CUDA while keeping ratio
+    :param output_folder: if not precise, add __compressed to filename
+    """
+    target_bitrate = int(target_bitrate)
+    try:
+        width, height = get_resolution(video_path)
+
+        if width >= 1080 or height >= 1080:
+            if output_filename == "":
+                output_filename = os.path.splitext(video_path)[0] + f"__compressed.mp4"
+
+            if width > height:
+                target_bitrate = (target_bitrate * 1920) // width
+                ffmpeg_command = (
+                    f'ffmpeg -y -hwaccel cuda -i "{video_path}" -c:v hevc_nvenc -b:v {target_bitrate}k -vf "scale=-2:1080" -c:a copy -pix_fmt yuv420p "{output_filename}"'
+                )
+            else:
+                target_bitrate = (target_bitrate * 1920) // height
+                ffmpeg_command = (
+                    f'ffmpeg -y -hwaccel cuda -i "{video_path}" -c:v hevc_nvenc -b:v {target_bitrate}k -vf "scale=1080:-2" -c:a copy -pix_fmt yuv420p "{output_filename}"'
+                )
+
+            exec(ffmpeg_command)
+            
+            return output_filename
+        else:
+            print(f" {video_path} is already <= to 1080p.")
+            return video_path
+    except Exception as e:
+        print(f"Failure with {video_path}. Error : {str(e)}")

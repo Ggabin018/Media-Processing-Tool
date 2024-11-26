@@ -6,7 +6,7 @@ from file_manipulation.dir_manip import (
     dir_audio_combine,
     dir_convert_video_to_video
 )
-from file_manipulation.video_modif import video_cut
+from file_manipulation.video_modif import video_cut, compress_video
 from file_manipulation.audio_modif import audio_replace, audio_combine
 from file_manipulation.convertisseur import convertir_video_to_mp3, conv_video_to_video
 
@@ -31,16 +31,21 @@ from DraggableListbox import WindowDragListBox
 
 temp_dir = tempfile.gettempdir()
 
-def reg_path(path:str)->str:
-    return path.replace('"', '')
+def regularize_path(path:str)->str:
+    path = path.strip('\'"')
+    path = path.replace('\\', '/')
+    path = os.path.normpath(path)
+    return path
 
+# path of temp file in tempdir
 dst_path = None
-def clean(sig, frame):
+
+def on_close(sig, frame):
     if dst_path != None:
         os.remove(dst_path)
     sys.exit(0)
-signal.signal(signal.SIGINT, clean)
-signal.signal(signal.SIGTERM, clean)
+signal.signal(signal.SIGINT, on_close)
+signal.signal(signal.SIGTERM, on_close)
 
 # region Single File
 
@@ -52,37 +57,42 @@ def on_change_file(src_path:str)->str:
     return copy(src_path, dst_path)
 
 def cut_video(video_path:str, start, end)->tuple[str, str]:
-    try:
-        video_path = reg_path(video_path)
-        if not os.path.exists(video_path):
-            raise Exception(f"{path} does not exit")
-        
-        path = video_cut(video_path, start=start, end=end)
-        return path, on_change_file(path)
-    except Exception as e:
-        return f"Error: {str(e)}", None
+    video_path = regularize_path(video_path)
+    if not os.path.exists(video_path):
+        raise Exception(f"{path} does not exit")
+    
+    path = video_cut(video_path, start=start, end=end)
+    return path, on_change_file(path)
 
 def convert_video_to_mp3(video_path:str)->tuple[str, str]:
     try:
-        path = convertir_video_to_mp3(reg_path(video_path))
+        path = convertir_video_to_mp3(regularize_path(video_path))
         return path, on_change_file(path)
     except Exception as e:
         return f"Error: {str(e)}", None
     
 def convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
     try:
-        path = conv_video_to_video(reg_path(video_path), ext)
-        return path
+        return conv_video_to_video(regularize_path(video_path), ext)
     except Exception as e:
         return f"Error: {str(e)}", None
 
 def modify_audio(video_path:str, audio_path:str, opt:str="replace")->tuple[str, str]:
     try:
         if opt == "replace":
-            path = audio_replace(reg_path(video_path), reg_path(audio_path))
+            path = audio_replace(regularize_path(video_path), regularize_path(audio_path))
         else:
-            path = audio_combine(reg_path(video_path), reg_path(audio_path))
+            path = audio_combine(regularize_path(video_path), regularize_path(audio_path))
         return path, on_change_file(path)
+    except Exception as e:
+        return f"Error: {str(e)}", None
+    
+def compress_vid(video_path:str, bitrate:int=8000):
+    try:
+        dir_path = os.path.split(video_path)[0]
+        output_folder = os.path.join(dir_path, "output")
+        os.makedirs(output_folder, exist_ok=True)
+        return compress_video(video_path, target_bitrate=bitrate)
     except Exception as e:
         return f"Error: {str(e)}", None
     
@@ -92,7 +102,7 @@ def modify_audio(video_path:str, audio_path:str, opt:str="replace")->tuple[str, 
 
 def dir_extract_audio(video_dir_path:str)->tuple[str, str]:
     try:
-        return dir_audio_extract(reg_path(video_dir_path))
+        return dir_audio_extract(regularize_path(video_dir_path))
     except Exception as e:
         return f"Error: {str(e)}", None
     
@@ -116,14 +126,14 @@ def dir_vid2vid(dir_path:str, ext:str)->tuple[str, str]:
 
 def batch_convert_video_to_mp3(video_path:str)->tuple[str, str]:
     try:
-        path = convertir_video_to_mp3(reg_path(video_path))
+        path = convertir_video_to_mp3(regularize_path(video_path))
         return path, on_change_file(path)
     except Exception as e:
         return f"Error: {str(e)}", None
     
 def batch_convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
     try:
-        path = conv_video_to_video(reg_path(video_path), ext)
+        path = conv_video_to_video(regularize_path(video_path), ext)
         return path
     except Exception as e:
         return f"Error: {str(e)}", None
@@ -131,9 +141,9 @@ def batch_convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
 def batch_modify_audio(video_path:list[str], audio_path:list[str], opt:str="replace")->tuple[str, str]:
     try:
         if opt == "replace":
-            path = audio_replace(reg_path(video_path), reg_path(audio_path))
+            path = audio_replace(regularize_path(video_path), regularize_path(audio_path))
         else:
-            path = audio_combine(reg_path(video_path), reg_path(audio_path))
+            path = audio_combine(regularize_path(video_path), regularize_path(audio_path))
         return path, on_change_file(path)
     except Exception as e:
         return f"Error: {str(e)}", None
@@ -165,6 +175,8 @@ def get_dir(default_path:str)->str:
     if dir_path is None:
         return default_path
     return dir_path
+
+# region Gradio Manager
 
 class GradioManager:
     def __init__(self):
@@ -234,6 +246,22 @@ class GradioManager:
                     btn_cv.click(get_file,inputs=video_path_input, outputs=video_path_input)
                     btn_ca.click(get_file,inputs=audio_path_input, outputs=audio_path_input)
                     replace_audio_btn.click(modify_audio, inputs=[video_path_input, audio_path_input, chose_opt], outputs=[replace_text_output, replace_video_output])
+
+                with gr.Tab("Compress Video"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                v_path = gr.Textbox(label="Video Path", scale=8)
+                                btn_get_v = gr.Button("📂", scale=1)
+                            bitrate = gr.Textbox(label="Target bitrate", value=8000)
+                            btn_compress = gr.Button("Compress")
+                        with gr.Column():
+                            compress_output = gr.Textbox(label="Result", interactive=False)
+
+                    btn_get_v.click(get_file, v_path, v_path)
+                    btn_compress.click(compress_vid, [v_path, bitrate], compress_output)
+
+                            
             
             with gr.Tab("Directory"):
                 with gr.Tab("Extract Audio from Directory"):
@@ -285,6 +313,8 @@ class GradioManager:
 
     def launch(self):
         self.interface.launch(inbrowser=True)
+
+#endregion
 
 if "__main__" == __name__:
     gr_man = GradioManager()

@@ -3,12 +3,13 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 
 from file_manipulation.audio_modif import audio_combine, audio_replace
-from file_manipulation.convertisseur import convertir_en_1080p, convertir_video_to_mp3, conv_video_to_video
+from file_manipulation.video_modif import compress_video
+from file_manipulation.convertisseur import convertir_video_to_mp3, conv_video_to_video
 
 
-def convertir_videos_dossier(dir_path:str):
+def compress_videos_dir(dir_path:str, bitrate:int=8000)->str:
     """
-    convertie toutes les vidéos d'un dossier dans un sous-dossier
+    compress all videos in a subdir output
     :param dir_path: chemin absolue du dossier
     """
     output_folder = os.path.join(dir_path, "output")
@@ -20,24 +21,31 @@ def convertir_videos_dossier(dir_path:str):
         elif fichier.lower().endswith('.webm'):
             video_files.append(conv_video_to_video(os.path.join(dir_path, fichier), "mp4"))
 
+    res = []
+    def process_file(file):
+        output_file = os.path.join(output_folder, file)
+        res.append(compress_video(file, output_file, bitrate))
+
     with ThreadPoolExecutor(max_workers=5) as executor:
-        executor.map(lambda x: convertir_en_1080p(x, output_folder), video_files)
+        executor.map(process_file, video_files)
+
+    return '\n'.join(res)
 
 
-def convertir_videos_dossier_parent(parent_dir:str):
+def compress_videos_dossier_parent(parent_dir:str):
     """
-    applique convertir_videos_dossier sur ses sous-dossiers
+    use convertir_videos_dossier sur ses sous-dossiers
     :param parent_dir: chemin abs dossier parent
     """
     try:
-        # Parcourt tous les sous-dossiers du dossier parent
+        # Just subdir, no recursive
         for child_dir in os.listdir(parent_dir):
             child_dir_path = os.path.join(parent_dir, child_dir)
 
             if os.path.isdir(child_dir_path):
-                convertir_videos_dossier(child_dir_path)
+                compress_videos_dir(child_dir_path)
     except Exception as e:
-        print(f"Erreur lors de la conversion des vidéos dans le dossier parent. Erreur : {str(e)}")
+        print(f"Error : {str(e)}")
 
 def dir_audio_extract(videos_dir:str)->str:
     """
