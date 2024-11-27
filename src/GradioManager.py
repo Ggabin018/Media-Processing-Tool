@@ -5,11 +5,31 @@ from file_manipulation.dir_manip import (
     dir_audio_replace, 
     dir_audio_combine,
     dir_convert_video_to_video,
-    compress_videos_dir
+    dir_compress_videos
 )
-from file_manipulation.video_modif import video_cut, compress_video
-from file_manipulation.audio_modif import audio_replace, audio_combine
-from file_manipulation.convertisseur import convertir_video_to_mp3, conv_video_to_video
+
+from file_manipulation.files_manip import (
+    files_audio_combine,
+    files_audio_replace,
+    files_compress_videos,
+    files_audio_extract,
+    files_convert_video_to_video
+)
+
+from file_manipulation.video_modif import (
+    video_cut,
+    video_compress
+)
+
+from file_manipulation.audio_modif import (
+    audio_replace,
+    audio_combine
+)
+
+from file_manipulation.convert import (
+    convert_vid2audio, 
+    convert_vid2vid
+)
 
 
 # use in save
@@ -67,14 +87,14 @@ def cut_video(video_path:str, start, end)->tuple[str, str]:
 
 def convert_video_to_mp3(video_path:str)->tuple[str, str]:
     try:
-        path = convertir_video_to_mp3(regularize_path(video_path))
+        path = convert_vid2audio(regularize_path(video_path))
         return path, on_change_file(path)
     except Exception as e:
         return f"Error: {str(e)}", None
     
 def convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
     try:
-        return conv_video_to_video(regularize_path(video_path), ext)
+        return convert_vid2vid(regularize_path(video_path), ext)
     except Exception as e:
         return f"Error: {str(e)}", None
 
@@ -93,7 +113,7 @@ def compress_vid(video_path:str, bitrate:int=8000):
         dir_path = os.path.split(video_path)[0]
         output_folder = os.path.join(dir_path, "output")
         os.makedirs(output_folder, exist_ok=True)
-        return compress_video(video_path, target_bitrate=bitrate)
+        return video_compress(video_path, target_bitrate=bitrate)
     except Exception as e:
         return f"Error: {str(e)}", None
     
@@ -101,13 +121,13 @@ def compress_vid(video_path:str, bitrate:int=8000):
 
 # region Directory
 
-def dir_extract_audio(video_dir_path:str)->tuple[str, str]:
+def directory_extract_audio(video_dir_path:str)->tuple[str, str]:
     try:
         return dir_audio_extract(regularize_path(video_dir_path))
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def dir_audio_modifier(video_dir_path:str, audio_dir_path:str, opt:str="replace")->tuple[str, str]:
+def directory_audio_modify(video_dir_path:str, audio_dir_path:str, opt:str="replace")->tuple[str, str]:
     try:
         if opt == "replace":
             return dir_audio_replace(video_dir_path, audio_dir_path)
@@ -115,43 +135,53 @@ def dir_audio_modifier(video_dir_path:str, audio_dir_path:str, opt:str="replace"
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def dir_vid2vid(dir_path:str, ext:str)->tuple[str, str]:
+def directory_convert(dir_path:str, ext:str)->tuple[str, str]:
     try:
         return dir_convert_video_to_video(dir_path, ext)
     except Exception as e:
         return f"Error: {str(e)}", None
     
-def dir_compress(dir_path:str, bitrate:int=8000):
+def directory_compress(dir_path:str, bitrate:int=8000):
     try:
-        return compress_videos_dir(dir_path, bitrate)
+        return dir_compress_videos(dir_path, bitrate)
     except Exception as e:
         return f"Error: {str(e)}", None
 
 # endregion 
 
 # region Multiples Files
-
-def batch_convert_video_to_mp3(video_path:str)->tuple[str, str]:
-    try:
-        path = convertir_video_to_mp3(regularize_path(video_path))
-        return path, on_change_file(path)
-    except Exception as e:
-        return f"Error: {str(e)}", None
     
-def batch_convert_video_to_video(video_path:str, ext:str)->tuple[str, str]:
+def batch_convert_video_to_video(videos:list[str], ext:str)->tuple[str, str]:
     try:
-        path = conv_video_to_video(regularize_path(video_path), ext)
+        videos = [regularize_path(p) for p in videos]
+        path = files_convert_video_to_video(videos, ext)
         return path
     except Exception as e:
         return f"Error: {str(e)}", None
 
-def batch_modify_audio(video_path:list[str], audio_path:list[str], opt:str="replace")->tuple[str, str]:
+def batch_modify_audio(videos:list[str], audios:list[str], opt:str="replace")->tuple[str, str]:
     try:
+        videos = [regularize_path(p) for p in videos]
+        audios = [regularize_path(p) for p in audios]
         if opt == "replace":
-            path = audio_replace(regularize_path(video_path), regularize_path(audio_path))
+            paths = files_audio_replace(videos, audios)
         else:
-            path = audio_combine(regularize_path(video_path), regularize_path(audio_path))
-        return path, on_change_file(path)
+            paths = files_audio_combine(videos, audios)
+        return paths
+    except Exception as e:
+        return f"Error: {str(e)}", None
+    
+def batch_compress(videos:list[str], bitrate:int=8000):
+    try:
+        videos = [regularize_path(p) for p in videos]
+        return files_compress_videos(videos, bitrate)
+    except Exception as e:
+        return f"Error: {str(e)}", None
+
+def batch_extract_audio(videos:list[str])->tuple[str, str]:
+    try:
+        videos = [regularize_path(p) for p in videos]
+        return files_audio_extract(videos)
     except Exception as e:
         return f"Error: {str(e)}", None
 
@@ -171,6 +201,19 @@ def get_file(default_path:str)->str:
     if file_path is None:
         return default_path
     return file_path.name
+
+def get_files(default_path:list[str])->str:
+    # TODO
+    root = tkinter.Tk()
+    root.withdraw()
+    root.wm_attributes('-topmost', 1)
+    
+    file_paths = filedialog.askopenfiles()
+    
+    root.destroy()
+    if file_paths is None:
+        return default_path
+    return file_paths.name
 
 def get_dir(default_path:str)->str:
     root = tkinter.Tk()
@@ -268,8 +311,7 @@ class GradioManager:
                     btn_get_v.click(get_file, v_path, v_path)
                     btn_compress.click(compress_vid, [v_path, bitrate], compress_output)
 
-                            
-            
+
             with gr.Tab("Directory"):
                 with gr.Tab("Extract Audio from Directory"):
                     with gr.Row():
@@ -282,7 +324,7 @@ class GradioManager:
                             extract_output = gr.Textbox(label="Result")
                     
                     btn_ask_dir.click(get_dir,inputs=dir_input, outputs=dir_input)
-                    extract_btn.click(dir_extract_audio, inputs=dir_input, outputs=extract_output)
+                    extract_btn.click(directory_extract_audio, inputs=dir_input, outputs=extract_output)
                 
                 with gr.Tab("Modify audio"):
                     with gr.Row():
@@ -300,7 +342,7 @@ class GradioManager:
                     
                     btn_video_dir_input.click(get_dir,inputs=video_dir_input, outputs=video_dir_input)
                     btn_audio_dir_input.click(get_dir,inputs=audio_dir_input, outputs=audio_dir_input)
-                    batch_replace_audio_btn.click(dir_audio_modifier, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
+                    batch_replace_audio_btn.click(directory_audio_modify, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
 
                 with gr.Tab("Compress to"):
                     with gr.Row():
@@ -314,15 +356,55 @@ class GradioManager:
                             batch_compress_result = gr.Textbox(label="Result")
 
                     btn_video_dir_input.click(get_dir, video_dir_compress, video_dir_compress)
-                    btn_batch_compress.click(dir_compress, [video_dir_compress, aim_bitrate], batch_compress_result)
+                    btn_batch_compress.click(directory_compress, [video_dir_compress, aim_bitrate], batch_compress_result)
+
 
             with gr.Tab("Multiples Videos"):
-                with gr.Tab("Convert Video to MP3"):
-                    gr.Markdown("# TODO")
-                with gr.Tab("Convert Video to Video"):
-                    gr.Markdown("# TODO")
-                with gr.Tab("Modify Audio in Video"):
-                    gr.Markdown("# TODO")
+                gr.Markdown("TODO")
+                with gr.Tab("Extract Audios from Videos"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                dir_input = gr.Textbox(label="Directory Path", scale=8)
+                                btn_ask_dir = gr.Button("📂", scale=1)
+                            extract_btn = gr.Button("Extract Audio")
+                        with gr.Column():
+                            extract_output = gr.Textbox(label="Result")
+                    
+                    btn_ask_dir.click(get_dir,inputs=dir_input, outputs=dir_input)
+                    extract_btn.click(directory_extract_audio, inputs=dir_input, outputs=extract_output)
+                
+                with gr.Tab("Modify audio"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                video_dir_input = gr.Textbox(label="Video Directory Path", scale=8)
+                                btn_video_dir_input= gr.Button("📂", scale=1)
+                            with gr.Row(equal_height=True):
+                                audio_dir_input = gr.Textbox(label="Audio Directory Path", scale=8)
+                                btn_audio_dir_input= gr.Button("📂", scale=1)
+                            dir_chose_opt=gr.Dropdown(label="Select a mod", choices=["replace", "combine"])
+                            batch_replace_audio_btn = gr.Button("Batch Modify Audio")
+                        with gr.Column():
+                            batch_replace_audio_output = gr.Textbox(label="Result")
+                    
+                    btn_video_dir_input.click(get_dir,inputs=video_dir_input, outputs=video_dir_input)
+                    btn_audio_dir_input.click(get_dir,inputs=audio_dir_input, outputs=audio_dir_input)
+                    batch_replace_audio_btn.click(directory_audio_modify, inputs=[video_dir_input, audio_dir_input, dir_chose_opt], outputs=batch_replace_audio_output)
+
+                with gr.Tab("Compress to"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                video_dir_compress = gr.Textbox(label="Video Directory Path", scale=8)
+                                btn_video_dir_input= gr.Button("📂", scale=1)
+                            aim_bitrate = gr.Textbox(label="Bitrate wanted:", value=8000)
+                            btn_batch_compress = gr.Button("Batch compress video")
+                        with gr.Column():
+                            batch_compress_result = gr.Textbox(label="Result")
+
+                    btn_video_dir_input.click(get_dir, video_dir_compress, video_dir_compress)
+                    btn_batch_compress.click(directory_compress, [video_dir_compress, aim_bitrate], batch_compress_result)
             
             with gr.Tab("Options"):
                 save_btn = gr.Button("Save options")

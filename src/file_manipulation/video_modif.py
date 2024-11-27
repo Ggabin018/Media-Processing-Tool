@@ -55,7 +55,7 @@ def video_upscale(input_video:str, factor:int)->str:
     exec(ffmpeg_command)
     return output_video
 
-def compress_video(video_path:str, output_filename:str="", target_bitrate:int=8000):
+def video_compress(video_path:str, output_filename:str="", target_bitrate:int=8000):
     """
     convert in 1080p with CUDA while keeping ratio
     :param output_folder: if not precise, add __compressed to filename

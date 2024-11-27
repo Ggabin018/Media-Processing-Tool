@@ -1,5 +1,20 @@
 # Media-Processing-Tool
 
+Web UI for editing videos.
+
+## Operations:
+* Cut video
+* Compress video by bitrate
+* Replace audio of video
+* Combine audio of video
+* Convert video to mp3
+* Convert video to video
+
+## Utils
+Gradio as interface.
+
+FFMPEG as editor.
+
 # Table of Contents
 * [Media-Processing-Tool](#media-processing-tool)
 * [Table of Contents](#table-of-contents)

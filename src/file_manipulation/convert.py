@@ -3,7 +3,7 @@ from moviepy.video.io.VideoFileClip import VideoFileClip
 
 from thread import exec
 
-def convertir_video_to_mp3(video_path:str, start_time:int=0, end_time:int=0)->str:
+def convert_vid2audio(video_path:str, start_time:int=0, end_time:int=0)->str:
     """ 
     video to mp3
     start_time and end_time in seconds
@@ -24,7 +24,7 @@ def convertir_video_to_mp3(video_path:str, start_time:int=0, end_time:int=0)->st
 
     return mp3_path
 
-def conv_video_to_video(video_path:str, ext:str)->str:
+def convert_vid2vid(video_path:str, ext:str)->str:
     output_video = os.path.splitext(video_path)[0] + "." + ext
     ffmpeg_command = (
         f'ffmpeg -y -i "{video_path}" -c copy "{output_video}"'
