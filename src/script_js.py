@@ -7,8 +7,8 @@ function shortcuts(e) {
         case "textarea":
         break;
         default:
-        if (e.key.toLowerCase() == "s" && e.shiftKey) {
-            alert("shortcut");
+        if (e.key == 'Enter' && e.shiftKey) {
+            alert("Call");
         }
     }
 }
