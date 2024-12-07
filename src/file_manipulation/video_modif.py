@@ -46,7 +46,8 @@ def video_cut(input_video:str, start=None, end=None)->str:
 
     output_video = os.path.splitext(input_video)[0] + "__cut.mp4"
     ffmpeg_command = (
-        f'ffmpeg -y -i "{input_video}" {start_option} {end_option} -c copy "{output_video}"'
+        #f'ffmpeg -y -i "{input_video}" {start_option} {end_option} -c copy "{output_video}"' # fast
+        f'ffmpeg -y -i "{input_video}" {start_option} {end_option} "{output_video}"'          # slow but no bug
     )
 
     exec(ffmpeg_command)
