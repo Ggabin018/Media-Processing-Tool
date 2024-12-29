@@ -142,12 +142,12 @@ def audio_replace(video_path:str, audio_path:str, name_add:str="__replace.mp4", 
 
     if compress:
         ffmpeg_command = (
-            f'ffmpeg -y -i "{video_path}" -i "{audio_path}" -c:v h264_nvenc -c:a aac -strict experimental '
+            f'ffmpeg -y -hwaccel cuda -i "{video_path}" -i "{audio_path}" -c:v hevc_nvenc -c:a copy -strict experimental '
             f'-b:v 8000k -b:a 192k -map 0:v:0 -map 1:a -shortest "{output_path}"'
         )
     else:
         ffmpeg_command = (
-            f'ffmpeg -y -i "{video_path}" -i "{audio_path}" -c:v h264_nvenc -c:a aac -strict experimental '
+            f'ffmpeg -y -hwaccel cuda -i "{video_path}" -i "{audio_path}" -c:v hevc_nvenc -c:a copy -strict experimental '
             f'-map 0:v:0 -map 1:a -shortest "{output_path}"'
         )
     exec(ffmpeg_command)

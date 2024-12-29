@@ -23,6 +23,18 @@ def get_resolution(video_path:str)->tuple[int,int]:
 
     return map(int, resolution_info.split('x'))
 
+def get_video_bitrate(video_path: str) -> float:
+    """
+    get video bitrate in kbps
+    :param video_path: Absolute path to the video file
+    :return: Bitrate of the video in kbps
+    """
+    ffmpeg_command = f'ffprobe -v error -select_streams v:0 -show_entries format=bit_rate -of csv=p=0 "{video_path}"'
+    
+    bitrate_info = os.popen(ffmpeg_command).read().strip()
+    
+    return float(bitrate_info) / 1000
+
 
 def video_cut(input_video:str, start=None, end=None)->str:
     """
@@ -36,7 +48,7 @@ def video_cut(input_video:str, start=None, end=None)->str:
     output_video = os.path.splitext(input_video)[0] + "__cut.mp4"
     ffmpeg_command = (
         #f'ffmpeg -y -i "{input_video}" {start_option} {end_option} -c copy "{output_video}"' # fast
-        f'ffmpeg -y -i "{input_video}" {start_option} {end_option} "{output_video}"'          # slow but no bug
+        f'ffmpeg -y -hwaccel cuda -i "{input_video}" -c:v hevc_nvenc -b:v {get_video_bitrate(input_video)}k {start_option} {end_option} "{output_video}"'          # slow but no bug
     )
 
     exec(ffmpeg_command)
