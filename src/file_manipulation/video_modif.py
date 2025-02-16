@@ -82,12 +82,10 @@ def video_compress(video_path:str, output_filename:str="", target_bitrate:int=80
                 output_filename = os.path.splitext(video_path)[0] + f"__compressed.mp4"
 
             if width > height:
-                target_bitrate = (target_bitrate * 1920) // width
                 ffmpeg_command = (
                     f'ffmpeg -y -hwaccel cuda -i "{video_path}" -c:v hevc_nvenc -b:v {target_bitrate}k -vf "scale=-2:1080" -c:a copy -pix_fmt yuv420p "{output_filename}"'
                 )
             else:
-                target_bitrate = (target_bitrate * 1920) // height
                 ffmpeg_command = (
                     f'ffmpeg -y -hwaccel cuda -i "{video_path}" -c:v hevc_nvenc -b:v {target_bitrate}k -vf "scale=1080:-2" -c:a copy -pix_fmt yuv420p "{output_filename}"'
                 )

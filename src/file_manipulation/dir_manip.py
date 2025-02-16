@@ -23,7 +23,7 @@ def dir_compress_videos(dir_path:str, bitrate:int=8000)->str:
 
     res = []
     def process_file(file):
-        output_file = os.path.join(output_folder, file)
+        output_file = os.path.join(output_folder, os.path.basename(file))
         res.append(video_compress(file, output_file, bitrate))
 
     with ThreadPoolExecutor(max_workers=5) as executor:
