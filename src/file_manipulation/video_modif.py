@@ -3,7 +3,20 @@ from src.utils.thread_processing import exec_command
 import ffmpeg
 import logging
 
+from src.utils.utils import hhmmss_to_seconds
+
 logger = logging.getLogger("video_modif")
+
+
+def get_original_codecs(input_video):
+    """Get the video and audio codecs of the input video file"""
+    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='stream=codec_name')
+    video_codec = probe['streams'][0]['codec_name']
+
+    probe = ffmpeg.probe(input_video, v='error', select_streams='a:0', show_entries='stream=codec_name')
+    audio_codec = probe['streams'][0]['codec_name']
+
+    return video_codec, audio_codec
 
 
 def get_video_duration(video_path: str) -> float:
@@ -84,7 +97,7 @@ def get_video_bitrate(video_path: str) -> float:
         raise
 
 
-def video_cut(input_video: str, start=None, end=None, fast_flag: bool = True) -> str:
+def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -> str:
     """
     Cut a video from start to end using ffmpeg-python
 
@@ -97,31 +110,44 @@ def video_cut(input_video: str, start=None, end=None, fast_flag: bool = True) ->
     output_video = os.path.splitext(input_video)[0] + "__cut.mp4"
 
     try:
-        stream = ffmpeg.input(input_video)
-
         if fast_flag:
-            # Fast seeking method (less accurate but quicker)
-            if start is not None and start != "":
+            # Fast seeking: quick but less precise trimming
+            if start:
                 stream = ffmpeg.input(input_video, ss=start)
-            if end is not None and end != "":
-                stream = stream.to(end)
+            else:
+                stream = ffmpeg.input(input_video)
+            if end:
+                duration = f"{hhmmss_to_seconds(end) - hhmmss_to_seconds(start)}" if start else end
+                stream = ffmpeg.output(stream, output_video, t=duration, c="copy")
+            else:
+                stream = ffmpeg.output(stream, output_video, c="copy")
         else:
-            # Slower but more accurate method
-            if start is not None and start != "":
-                stream = stream.filter('trim', start=start)
-            if end is not None and end != "":
-                stream = stream.filter('trim', end=end)
+            # Frame-accurate trimming: slower but precise
 
-        stream = ffmpeg.output(stream, output_video, c='copy')
+            stream = ffmpeg.input(input_video)
+
+            vid = aud = None
+            if start and end:
+                vid = stream.trim(start=start, end=end).setpts('PTS-STARTPTS')
+                aud = stream.filter_('atrim', start=start, end=end).filter_('asetpts', 'PTS-STARTPTS')
+            elif start:
+                vid = stream.trim(start=start).setpts('PTS-STARTPTS')
+                aud = stream.filter_('atrim', start=start).filter_('asetpts', 'PTS-STARTPTS')
+            elif end:
+                vid = stream.trim(end=end).setpts('PTS-STARTPTS')
+                aud = stream.filter_('atrim', end=end).filter_('asetpts', 'PTS-STARTPTS')
+
+            stream = ffmpeg.output(vid, aud, output_video)
 
         stream = ffmpeg.overwrite_output(stream)
 
-        ffmpeg.run(stream, quiet=True)
+        ffmpeg.run(stream)
+        #TODO: ffmpeg.run(stream, quiet=False, loglevel='info')
 
         return output_video
 
     except ffmpeg.Error as e:
-        logger.error(f"ffmpeg error: {e.stderr.decode()}")
+        logger.error(f"ffmpeg error: {e.stderr}")
     return ""
 
 
@@ -155,7 +181,7 @@ def video_upscale(input_video: str, factor: int) -> str:
 
         output = ffmpeg.overwrite_output(output)
 
-        ffmpeg.run(output, quiet=True)
+        ffmpeg.run(output)
 
         return output_video
 
@@ -165,7 +191,8 @@ def video_upscale(input_video: str, factor: int) -> str:
         logger.error(f"Error during video upscaling: {str(e)}")
     return ""
 
-#TODO: add min resolution
+
+# TODO: add min resolution
 def video_compress(video_path: str, output_filename: str = "", target_bitrate: int = 8000) -> str:
     """
     Convert video to 1080p with CUDA acceleration while keeping aspect ratio
@@ -208,7 +235,7 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
 
             output = ffmpeg.overwrite_output(output)
 
-            ffmpeg.run(output, quiet=True)
+            ffmpeg.run(output)
 
             return output_filename
         else:
@@ -223,13 +250,15 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
 
 if "__main__" == __name__:
     logging.basicConfig(level=logging.INFO)
-    v_path = "/home/gabin/Media-Processing-Tool/ER.mp4"
+    # v_path = "/home/gabin/Media-Processing-Tool/ER.mp4"
+    v_path = r"C:\Users\tigro\Desktop\Projet informatique\Projet Python\Media-Processing-Tool\Cyberpunk 2077 (C) 2020 by CD Projekt RED 2024-09-01 14-07-21.mp4"
     if os.path.exists(v_path):
         logger.info("START")
 
         print("duration:\t", get_video_duration(v_path))
         print("resolution:\t", get_resolution(v_path))
         print("bit_rate:\t", get_video_bitrate(v_path))
+        print(get_original_codecs(v_path))
 
         logger.info("END")
     else:
