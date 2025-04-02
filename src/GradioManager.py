@@ -266,11 +266,12 @@ class GradioManager:
                             cut_video_btn = gr.Button("Cut Video")
                         with gr.Column():
                             cut_output = gr.Textbox(label="Result", interactive=False)
-                            cut_video_output = gr.Video()
+                            cut_video_output = gr.Video(sources=["upload"])
 
                     btn_chose_video_to_cut.click(get_file, inputs=video_input, outputs=video_input)
                     cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time],
-                                        outputs=[cut_output, cut_video_output])
+                                        outputs=[cut_output, cut_video_output], )
+
 
                 with gr.Tab("Convert Video to MP3"):
                     with gr.Row():
@@ -315,7 +316,7 @@ class GradioManager:
                             replace_audio_btn = gr.Button("Modify Audio")
                         with gr.Column():
                             replace_text_output = gr.Textbox(label="Result", interactive=False)
-                            replace_video_output = gr.Video()
+                            replace_video_output = gr.Video(sources=['upload'])
 
                     btn_cv.click(get_file, inputs=video_path_input, outputs=video_path_input)
                     btn_ca.click(get_file, inputs=audio_path_input, outputs=audio_path_input)
