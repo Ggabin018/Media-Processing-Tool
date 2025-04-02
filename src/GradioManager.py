@@ -328,7 +328,7 @@ class GradioManager:
                             with gr.Row(equal_height=True):
                                 v_path = gr.Textbox(label="Video Path", scale=8)
                                 btn_get_v = gr.Button("📂", scale=1)
-                            bitrate = gr.Textbox(label="Target bitrate", value=8000)
+                            bitrate = gr.Textbox(label="Target bitrate", value="8000")
                             btn_compress = gr.Button("Compress")
                         with gr.Column():
                             compress_output = gr.Textbox(label="Result", interactive=False)
@@ -376,7 +376,7 @@ class GradioManager:
                             with gr.Row(equal_height=True):
                                 video_dir_compress = gr.Textbox(label="Video Directory Path", scale=8)
                                 btn_video_dir_input = gr.Button("📂", scale=1)
-                            aim_bitrate = gr.Textbox(label="Bitrate wanted:", value=8000)
+                            aim_bitrate = gr.Textbox(label="Bitrate wanted:", value="8000")
                             btn_batch_compress = gr.Button("Batch compress video")
                         with gr.Column():
                             batch_compress_result = gr.Textbox(label="Result")
@@ -426,7 +426,7 @@ class GradioManager:
                             with gr.Row(equal_height=True):
                                 video_dir_compress = gr.Textbox(label="Video Directory Path", scale=8)
                                 btn_video_dir_input = gr.Button("📂", scale=1)
-                            aim_bitrate = gr.Textbox(label="Bitrate wanted:", value=8000)
+                            aim_bitrate = gr.Textbox(label="Bitrate wanted:", value="8000")
                             btn_batch_compress = gr.Button("Batch compress video")
                         with gr.Column():
                             batch_compress_result = gr.Textbox(label="Result")

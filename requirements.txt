@@ -1,3 +1,6 @@
 gradio==5.5.0
 moviepy==1.0.3
 pydub==0.25.1
+
+future~=1.0.0
+ffmpeg-python~=0.2.0
