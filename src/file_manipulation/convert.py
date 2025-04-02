@@ -1,9 +1,10 @@
 import os
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
-from thread import exec
+from src.utils.thread_processing import exec_command
 
-def convert_vid2audio(video_path:str, start_time:int=0, end_time:int=0)->str:
+
+def convert_vid2audio(video_path: str, start_time: int = 0, end_time: int = 0) -> str:
     """ 
     video to mp3
     start_time and end_time in seconds
@@ -24,10 +25,11 @@ def convert_vid2audio(video_path:str, start_time:int=0, end_time:int=0)->str:
 
     return mp3_path
 
-def convert_vid2vid(video_path:str, ext:str)->str:
+
+def convert_vid2vid(video_path: str, ext: str) -> str:
     output_video = os.path.splitext(video_path)[0] + "." + ext
     ffmpeg_command = (
         f'ffmpeg -y -i "{video_path}" -c copy "{output_video}"'
     )
-    exec(ffmpeg_command)
+    exec_command(ffmpeg_command)
     return output_video

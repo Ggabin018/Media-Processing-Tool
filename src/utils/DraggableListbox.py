@@ -1,5 +1,6 @@
 import tkinter as tk
 
+
 class DraggableListbox(tk.Listbox):
     def __init__(self, master, **kwargs):
         super().__init__(master, **kwargs)
@@ -24,6 +25,7 @@ class DraggableListbox(tk.Listbox):
     def __on_drop(self, event):
         self.dragging_index = None
 
+
 class WindowDragListBox:
     def __init__(self, l):
         self.root = tk.Tk()
@@ -44,6 +46,7 @@ class WindowDragListBox:
 
     def __stop(self):
         self.root.quit()
+
 
 if __name__ == "__main__":
     l = ["Ligne 1", "Ligne 2", "Ligne 3", "Ligne 4", "Ligne 5"]

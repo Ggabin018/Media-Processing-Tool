@@ -2,29 +2,29 @@ import os
 from pydub import AudioSegment
 from moviepy.editor import VideoFileClip, AudioFileClip
 
-from file_manipulation.video_modif import get_video_duration
-from thread import exec
+from src.utils.thread_processing import exec_command
+from src.file_manipulation.video_modif import get_video_duration
 
 
-def apply_reverb(input_path:str)->str:
+def apply_reverb(input_path: str) -> str:
     """
     add reverb to a copy of input file
     """
     if not os.path.exists(input_path):
         raise Exception(f"{input_path} don't exist")
-    
+
     reverb_parameters = "0.8:0.9:1000:0.6"
     output_path = os.path.splitext(input_path)[0] + "__reverb.mp3"
 
     ffmpeg_command = (
         f'ffmpeg -y -i "{input_path}" -af "aecho={reverb_parameters}" -c:a libmp3lame -q:a 2 "{output_path}"'
     )
-    exec(ffmpeg_command)
+    exec_command(ffmpeg_command)
 
     return output_path
 
 
-def apply_deep_voice(input_path:str, sampling_rate:float=0.8)->str:
+def apply_deep_voice(input_path: str, sampling_rate: float = 0.8) -> str:
     """
     add deep effect to a copy of input file
     """
@@ -32,19 +32,19 @@ def apply_deep_voice(input_path:str, sampling_rate:float=0.8)->str:
         raise Exception(f"{input_path} don't exist")
     if sampling_rate <= 0 or sampling_rate > 1:
         raise Exception(f"invalid sampling rate: {sampling_rate}")
-    
+
     output_path = os.path.splitext(input_path)[0] + f"__deep{sampling_rate}.mp3"
 
     ffmpeg_command = (
         f'ffmpeg -y -i "{input_path}" -af "asetrate={sampling_rate}*44100" -c:a libmp3lame -q:a 2 "{output_path}"'
     )
 
-    exec(ffmpeg_command)
+    exec_command(ffmpeg_command)
 
     return output_path
 
 
-def multiply_audio(input_audio_path:str, output_audio_path:str, multiplier:int)->None:
+def multiply_audio(input_audio_path: str, output_audio_path: str, multiplier: int) -> None:
     """
     multiply an audio in a new file, overwrite if same name
     :param multiplier: facteur
@@ -54,11 +54,11 @@ def multiply_audio(input_audio_path:str, output_audio_path:str, multiplier:int)-
     multiplied_audio = audio * int(multiplier)
 
     multiplied_audio.export(output_audio_path, format="mp3")
-    
+
     print("multiply_audio done !")
 
 
-def merge_audio(audio1_path:str, audio2_path:str, output_mp3_path:str)->None:
+def merge_audio(audio1_path: str, audio2_path: str, output_mp3_path: str) -> None:
     sound1 = AudioSegment.from_file(audio1_path, format="mp3")
     sound2 = AudioSegment.from_file(audio2_path, format="mp3")
 
@@ -71,7 +71,7 @@ def merge_audio(audio1_path:str, audio2_path:str, output_mp3_path:str)->None:
     overlay.export(output_mp3_path, format="mp3")
 
 
-def mix_audio_and_export(video_path:str, audio_path:str)->str:
+def mix_audio_and_export(video_path: str, audio_path: str) -> str:
     """
     merge audio in video
     :param video_path: path piste vidéo
@@ -115,7 +115,8 @@ def mix_audio_and_export(video_path:str, audio_path:str)->str:
 
     return output_mp3_path
 
-def get_audio_duration(audio_path:str)->float:
+
+def get_audio_duration(audio_path: str) -> float:
     """
     :param audio_path: chemin absolu du fichier audio
     :return: durée du fichier audio en secondes
@@ -127,7 +128,7 @@ def get_audio_duration(audio_path:str)->float:
     return float(duration_info)
 
 
-def audio_replace(video_path:str, audio_path:str, name_add:str="__replace.mp4", compress:bool=True)->str:
+def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.mp4", compress: bool = True) -> str:
     """
     replace audio, compress by default
     :param video_path:
@@ -150,11 +151,11 @@ def audio_replace(video_path:str, audio_path:str, name_add:str="__replace.mp4", 
             f'ffmpeg -y -hwaccel cuda -i "{video_path}" -i "{audio_path}" -c:v hevc_nvenc -c:a copy -strict experimental '
             f'-map 0:v:0 -map 1:a -shortest "{output_path}"'
         )
-    exec(ffmpeg_command)
+    exec_command(ffmpeg_command)
     return output_path
 
 
-def audio_combine(video_path:str, audio_path:str, compress:bool=True)->str:
+def audio_combine(video_path: str, audio_path: str, compress: bool = True) -> str:
     """
     combine video file with audio file
     """
