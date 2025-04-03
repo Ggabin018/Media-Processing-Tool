@@ -1,22 +1,26 @@
-import os
-from src.utils.thread_processing import exec_command
-import ffmpeg
 import logging
+import os
+
+import ffmpeg
 
 from src.utils.utils import hhmmss_to_seconds
 
 logger = logging.getLogger("video_modif")
 
 
-def get_original_codecs(input_video):
+def get_original_codecs(input_video) -> tuple[str, str]:
     """Get the video and audio codecs of the input video file"""
-    probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='stream=codec_name')
-    video_codec = probe['streams'][0]['codec_name']
+    try:
+        probe = ffmpeg.probe(input_video, v='error', select_streams='v:0', show_entries='stream=codec_name')
+        video_codec = probe['streams'][0]['codec_name']
 
-    probe = ffmpeg.probe(input_video, v='error', select_streams='a:0', show_entries='stream=codec_name')
-    audio_codec = probe['streams'][0]['codec_name']
+        probe = ffmpeg.probe(input_video, v='error', select_streams='a:0', show_entries='stream=codec_name')
+        audio_codec = probe['streams'][0]['codec_name']
 
-    return video_codec, audio_codec
+        return video_codec, audio_codec
+    except ffmpeg.Error as e:
+        logger.error(f"ffmpeg error: {e.stderr}")
+    return "", ""
 
 
 def get_video_duration(video_path: str) -> float:
@@ -142,7 +146,6 @@ def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -
         stream = ffmpeg.overwrite_output(stream)
 
         ffmpeg.run(stream)
-        #TODO: ffmpeg.run(stream, quiet=False, loglevel='info')
 
         return output_video
 
@@ -193,6 +196,23 @@ def video_upscale(input_video: str, factor: int) -> str:
 
 
 # TODO: add min resolution
+import re
+import sys
+import time
+from typing import Dict, Optional
+
+
+def process_progress_data(progress_text):
+    """Process FFmpeg machine-readable progress data."""
+    info = {}
+    for line in progress_text.split('\n'):
+        if '=' in line:
+            key, value = line.split('=', 1)
+            info[key.strip()] = value.strip()
+
+    return info
+
+
 def video_compress(video_path: str, output_filename: str = "", target_bitrate: int = 8000) -> str:
     """
     Convert video to 1080p with CUDA acceleration while keeping aspect ratio
@@ -230,14 +250,28 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
                 vcodec='hevc_nvenc',
                 video_bitrate=f'{target_bitrate}k',
                 acodec='copy',
-                pix_fmt='yuv420p'  # compatibility
+                pix_fmt='yuv420p',
+                **{'stats': None, 'progress': 'pipe:1'}  # Force progress output
             )
 
             output = ffmpeg.overwrite_output(output)
 
-            ffmpeg.run(output)
+            # Start ffmpeg process
+            print(f"Compressing {os.path.basename(video_path)} to {os.path.basename(output_filename)}")
+            process = ffmpeg.run_async(output, pipe_stdout=True, pipe_stderr=True)
 
-            return output_filename
+            progress_bar(video_path, process)
+
+            # Wait for process to finish
+            return_code = process.wait()
+
+            if return_code == 0:
+                sys.stdout.write("\n")
+                print(f"Compression completed successfully")
+                return output_filename
+            else:
+                print(f"\nCompression failed with return code {return_code}")
+                return ""
         else:
             return f"{video_path} is already <= to 1080p."
 
@@ -248,18 +282,69 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
     return ""
 
 
-if "__main__" == __name__:
-    logging.basicConfig(level=logging.INFO)
-    # v_path = "/home/gabin/Media-Processing-Tool/ER.mp4"
-    v_path = r"C:\Users\tigro\Desktop\Projet informatique\Projet Python\Media-Processing-Tool\Cyberpunk 2077 (C) 2020 by CD Projekt RED 2024-09-01 14-07-21.mp4"
-    if os.path.exists(v_path):
-        logger.info("START")
+def format_time(seconds: float) -> str:
+    """Format seconds as HH:MM:SS.ms."""
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = seconds % 60
+    return f"{hours:02d}:{minutes:02d}:{seconds:06.3f}"
 
-        print("duration:\t", get_video_duration(v_path))
-        print("resolution:\t", get_resolution(v_path))
-        print("bit_rate:\t", get_video_bitrate(v_path))
-        print(get_original_codecs(v_path))
+def progress_bar(video_path, process):
+    duration = get_video_duration(video_path)
 
-        logger.info("END")
-    else:
-        logger.error("File not found")
+    # Progress tracking variables
+    progress_buffer = ""
+    progress_info = {}
+
+    # Create a progress bar
+    bar_width = 100
+
+    # Process output in real-time
+    while process.poll() is None:
+        # Read one character at a time to handle streaming
+        char = process.stdout.read(1).decode('utf-8', errors='replace')
+        if char == '':
+            break
+
+        progress_buffer += char
+
+        # When we get a complete progress update (ends with \n)
+        if char == '\n':
+            line = progress_buffer.strip()
+            progress_buffer = ""
+
+            if '=' in line:
+                key, value = line.split('=', 1)
+                progress_info[key.strip()] = value.strip()
+
+            # Check if we have a complete progress frame
+            if line == 'progress=continue' or line == 'progress=end':
+                # Extract useful information
+                out_time = progress_info.get('out_time', '00:00:00.000000')
+                fps = progress_info.get('fps', '0')
+                speed = progress_info.get('speed', '0x')
+
+                # Calculate progress percentage
+                time_parts = out_time.split(':')
+                current_seconds = float(time_parts[0]) * 3600 + float(time_parts[1]) * 60 + float(time_parts[2])
+                percentage = min(100, int(current_seconds / duration * 100))
+
+                # Create progress bar visualization
+                filled_width = int(bar_width * percentage / 100)
+                bar = '█' * filled_width + '-' * (bar_width - filled_width)
+
+                # Print progress
+                sys.stdout.write(f"\r[{bar}] {percentage:3d}% | "
+                                 f"Time: {out_time[:11]} / {format_time(duration)} | "
+                                 f"FPS: {fps} | Speed: {speed}")
+                sys.stdout.flush()
+
+                # Clear progress info for next update
+                if line == 'progress=end':
+                    break
+
+
+if __name__ == "__main__":
+    v_path = "/home/gabin/Media-Processing-Tool/tests/videos/test.mp4"
+    # video_cut(v_path, "00:00:30", "00:00:50")
+    video_compress(v_path)
