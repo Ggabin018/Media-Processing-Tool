@@ -2,8 +2,8 @@ import os
 from pydub import AudioSegment
 from moviepy.editor import VideoFileClip, AudioFileClip
 
-from src.utils.thread_processing import exec_command
-from src.file_manipulation.video_modif import get_video_duration
+from utils.thread_processing import exec_command
+from file_manipulation.video_modif import get_video_duration
 
 
 def apply_reverb(input_path: str) -> str:

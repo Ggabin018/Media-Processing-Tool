@@ -3,7 +3,7 @@ import os
 
 import ffmpeg
 
-from src.utils.utils import hhmmss_to_seconds
+from utils.utils import hhmmss_to_seconds
 
 logger = logging.getLogger("video_modif")
 

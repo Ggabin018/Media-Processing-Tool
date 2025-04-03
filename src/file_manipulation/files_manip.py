@@ -2,9 +2,9 @@ import os
 import random
 from concurrent.futures import ThreadPoolExecutor
 
-from src.file_manipulation.audio_modif import audio_combine, audio_replace
-from src.file_manipulation.video_modif import video_compress
-from src.file_manipulation.convert import convert_vid2audio, convert_vid2vid
+from file_manipulation.audio_modif import audio_combine, audio_replace
+from file_manipulation.video_modif import video_compress
+from file_manipulation.convert import convert_vid2audio, convert_vid2vid
 
 
 def files_compress_videos(files: list[str], bitrate: int = 8000) -> str:

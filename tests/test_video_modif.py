@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from src.file_manipulation.video_modif import get_video_duration, get_resolution, get_video_bitrate, get_original_codecs
+from file_manipulation.video_modif import get_video_duration, get_resolution, get_video_bitrate, get_original_codecs
 
 
 class TestVideoProcessing(unittest.TestCase):

@@ -1,7 +1,7 @@
 import os
 from moviepy.video.io.VideoFileClip import VideoFileClip
 
-from src.utils.thread_processing import exec_command
+from utils.thread_processing import exec_command
 
 
 def convert_vid2audio(video_path: str, start_time: int = 0, end_time: int = 0) -> str:

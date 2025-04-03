@@ -1,37 +1,36 @@
 import os
 import random
-from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 
-from src.file_manipulation.audio_modif import audio_combine, audio_replace
-from src.file_manipulation.video_modif import video_compress
-from src.file_manipulation.convert import convert_vid2audio, convert_vid2vid
+from file_manipulation.audio_modif import audio_combine, audio_replace
+from file_manipulation.video_modif import video_compress
+from file_manipulation.convert import convert_vid2audio, convert_vid2vid
 
 
 def dir_compress_videos(dir_path: str, bitrate: int = 8000) -> str:
     """
-    Compress all videos in a subdir into an 'output' folder.
-
-    :param dir_path: Absolute path of the folder
-    :param bitrate: Target bitrate for compression
-    :return: List of output files or messages
+    compress all videos in a subdir output
+    :param dir_path: chemin absolue du dossier
     """
     output_folder = os.path.join(dir_path, "output")
     os.makedirs(output_folder, exist_ok=True)
+    video_files = []
+    for fichier in os.listdir(dir_path):
+        if fichier.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
+            video_files.append(os.path.join(dir_path, fichier))
+        elif fichier.lower().endswith('.webm'):
+            video_files.append(convert_vid2vid(os.path.join(dir_path, fichier), "mp4"))
 
-    video_files = [
-        os.path.join(dir_path, fichier)
-        for fichier in os.listdir(dir_path)
-        if fichier.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.webm'))
-    ]
+    res = []
 
-    with ProcessPoolExecutor(max_workers=5) as executor:
-        futures = [
-            executor.submit(video_compress, file, os.path.join(output_folder, os.path.basename(file)), bitrate)
-            for file in video_files
-        ]
-        results = [future.result() for future in futures]
+    def process_file(file):
+        output_file = os.path.join(output_folder, os.path.basename(file))
+        res.append(video_compress(file, output_file, bitrate))
 
-    return '\n'.join(filter(None, results))  # Remove empty results
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        executor.map(process_file, video_files)
+
+    return '\n'.join(res)
 
 
 def compress_videos_dossier_parent(parent_dir: str):
@@ -167,7 +166,3 @@ def dir_convert_video_to_video(videos_dir: str, ext: str) -> str:
         executor.map(process_file, files)
 
     return '\n'.join(res)
-
-if __name__ == "__main__":
-    dir_path = "/home/gabin/Media-Processing-Tool/tests/videos"
-    dir_compress_videos(dir_path)
