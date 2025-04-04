@@ -29,13 +29,13 @@ def make_temp_copy(src_path:str)->str:
         temp_file = temp_path.name
     return shutil.copy(src_path, temp_file)
 
-def cut_video(video_path: str, start, end) -> str:
+def cut_video(video_path: str, start, end) -> tuple[str, str|None]:
     video_path = regularize_path(video_path)
     if not os.path.exists(video_path):
-        raise Exception(f"{video_path} does not exit")
+        return f"{video_path} does not exit", None
 
     path = video_cut(video_path, start=start, end=end)
-    return make_temp_copy(path)
+    return path, make_temp_copy(path)
 
 
 def convert_media_to_media(video_path: str, ext: str) -> tuple[str,str|None,str|None]:

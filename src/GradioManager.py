@@ -3,12 +3,12 @@ import datetime
 import signal
 import sys
 
-from Parameters import Params
+from toolbox.Parameters import Params
 from script_js import js
-from single_file import *
-from multiple_files import *
-from directory import *
-from tkinter_getters import *
+from api_gradio.single_file import *
+from api_gradio.multiple_files import *
+from api_gradio.directory import *
+from toolbox.tkinter_getters import *
 
 
 def on_close(sig, frame):
@@ -51,7 +51,7 @@ class GradioManager:
 
                     btn_chose_video_to_cut.click(get_file, inputs=video_input, outputs=video_input)
                     cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time],
-                                        outputs=[cut_output, cut_video_output], )
+                                        outputs=[cut_output, cut_video_output])
 
                 with gr.Tab("Convert Media"):
                     with gr.Row():

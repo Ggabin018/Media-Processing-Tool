@@ -1,6 +1,6 @@
 import sys
 
-from utils import format_time
+from toolbox.utils import format_time
 
 
 def progress_bar(duration:float, process):

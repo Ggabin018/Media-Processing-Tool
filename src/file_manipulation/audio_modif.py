@@ -1,17 +1,14 @@
 import logging
 import shutil
 import tempfile
-from math import ceil
-
 import ffmpeg
 import os
 import json
 import subprocess
 
+from math import ceil
 from moviepy.editor import VideoFileClip, AudioFileClip
-
 from file_manipulation.video_modif import get_video_duration
-from toolbox.thread_processing import exec_command
 
 
 def get_audio_duration(audio_path: str) -> float:

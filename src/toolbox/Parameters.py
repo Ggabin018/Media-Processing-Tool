@@ -2,7 +2,7 @@ import json
 import logging
 import os.path
 
-from Singleton import SingletonMeta
+from toolbox.Singleton import SingletonMeta
 
 class Params(metaclass=SingletonMeta):
     params_dict = {}

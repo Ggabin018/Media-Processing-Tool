@@ -3,7 +3,7 @@ import os
 import sys
 import ffmpeg
 
-from ProgressBar import progress_bar
+from toolbox.ProgressBar import progress_bar
 from toolbox.utils import hhmmss_to_seconds
 
 logger = logging.getLogger("video_modif")

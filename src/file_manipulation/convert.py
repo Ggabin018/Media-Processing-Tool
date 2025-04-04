@@ -1,8 +1,8 @@
 import os
 import ffmpeg
 
-from ProgressBar import progress_bar
-from video_modif import get_video_duration
+from toolbox.ProgressBar import progress_bar
+from file_manipulation.video_modif import get_video_duration
 
 
 # FIXME: not working: webm -> return code error 1
