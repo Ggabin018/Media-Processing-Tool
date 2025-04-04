@@ -1,35 +1,26 @@
 import os
-from moviepy.video.io.VideoFileClip import VideoFileClip
-
-from utils.thread_processing import exec_command
+import ffmpeg
 
 
-def convert_vid2audio(video_path: str, start_time: int = 0, end_time: int = 0) -> str:
-    """ 
-    video to mp3
-    start_time and end_time in seconds
+# TODO: add start_time: int, end_time: int in seconds
+def convert_media(input_path: str, ext: str) -> str:
     """
-    video_clip = VideoFileClip(video_path)
-    if start_time < 0 or end_time < 0:
-        raise Exception("start_time or end_time are negative")
-    if end_time == 0:
-        end_time = video_clip.duration
+    Convert a media file (video or audio) to another format
+    """
+    if not os.path.exists(input_path):
+        raise Exception(f"{input_path} doesn't exist")
 
-    audio_clip = video_clip.audio.subclip(start_time, end_time)
+    output_path = os.path.splitext(input_path)[0] + "." + ext
 
-    mp3_path = os.path.splitext(video_path)[0] + ".mp3"
-    audio_clip.write_audiofile(mp3_path)
+    input_stream = ffmpeg.input(input_path)
 
-    audio_clip.close()
-    video_clip.close()
+    output = ffmpeg.output(input_stream, output_path)
 
-    return mp3_path
+    output.overwrite_output().run()
+
+    return output_path
 
 
-def convert_vid2vid(video_path: str, ext: str) -> str:
-    output_video = os.path.splitext(video_path)[0] + "." + ext
-    ffmpeg_command = (
-        f'ffmpeg -y -i "{video_path}" -c copy "{output_video}"'
-    )
-    exec_command(ffmpeg_command)
-    return output_video
+if __name__ == "__main__":
+    path = "/home/gabin/Media-Processing-Tool/tests/videos/test.mp4"
+    convert_media(path, "mp3")

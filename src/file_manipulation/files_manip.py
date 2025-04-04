@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from file_manipulation.audio_modif import audio_combine, audio_replace
 from file_manipulation.video_modif import video_compress
-from file_manipulation.convert import convert_vid2audio, convert_vid2vid
+from file_manipulation.convert import convert_media
 
 
 def files_compress_videos(files: list[str], bitrate: int = 8000) -> str:
@@ -29,7 +29,7 @@ def files_audio_extract(files: list[str]) -> str:
     res = []
 
     def process_file(file):
-        res.append(convert_vid2audio(file))
+        res.append(convert_media(file, "mp3"))
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, files)
@@ -73,7 +73,7 @@ def files_convert_video_to_video(videos: list[str], ext: str) -> str:
     res = []
 
     def process_file(file):
-        res.append(convert_vid2vid(file, ext))
+        res.append(convert_media(file, ext))
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, videos)

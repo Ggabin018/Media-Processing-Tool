@@ -4,7 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from file_manipulation.audio_modif import audio_combine, audio_replace
 from file_manipulation.video_modif import video_compress
-from file_manipulation.convert import convert_vid2audio, convert_vid2vid
+from file_manipulation.convert import convert_media
 
 
 def dir_compress_videos(dir_path: str, bitrate: int = 8000) -> str:
@@ -19,7 +19,7 @@ def dir_compress_videos(dir_path: str, bitrate: int = 8000) -> str:
         if fichier.lower().endswith(('.mp4', '.avi', '.mkv', '.mov')):
             video_files.append(os.path.join(dir_path, fichier))
         elif fichier.lower().endswith('.webm'):
-            video_files.append(convert_vid2vid(os.path.join(dir_path, fichier), "mp4"))
+            video_files.append(convert_media(os.path.join(dir_path, fichier), "mp4"))
 
     res = []
 
@@ -58,7 +58,7 @@ def dir_audio_extract(videos_dir: str) -> str:
 
     def process_file(file):
         path_mp4 = os.path.join(videos_dir, file)
-        res.append(convert_vid2audio(path_mp4))
+        res.append(convert_media(path_mp4, "mp3"))
 
     files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
 
@@ -160,7 +160,7 @@ def dir_convert_video_to_video(videos_dir: str, ext: str) -> str:
              file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.webm'))]
 
     def process_file(file):
-        res.append(convert_vid2vid(file, ext))
+        res.append(convert_media(file, ext))
 
     with ThreadPoolExecutor(max_workers=5) as executor:
         executor.map(process_file, files)
