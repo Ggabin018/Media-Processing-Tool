@@ -42,8 +42,8 @@ class GradioManager:
                             with gr.Row(equal_height=True):
                                 video_input = gr.Textbox(label="Video Path", placeholder="required", scale=8)
                                 btn_chose_video_to_cut = gr.Button("📂", scale=1)
-                            start_time = gr.Textbox(label="Start Time (HH:MM:SS)")
-                            end_time = gr.Textbox(label="End Time (HH:MM:SS)")
+                            start_time = gr.Textbox(label="Start Time (HH:MM:SS or seconds)")
+                            end_time = gr.Textbox(label="End Time (HH:MM:SS) or seconds")
                             cut_video_btn = gr.Button("Cut Video")
                         with gr.Column():
                             cut_output = gr.Textbox(label="Result", interactive=False)

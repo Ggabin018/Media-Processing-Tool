@@ -242,7 +242,7 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
 
             # Start ffmpeg process
             print(f"Compressing {os.path.basename(video_path)} to {os.path.basename(output_filename)}")
-            process = ffmpeg.run_async(output, pipe_stdout=True, pipe_stderr=True)
+            process = ffmpeg.run_async(output, pipe_stdout=True)
 
             progress_bar(get_video_duration(video_path), process)
 
