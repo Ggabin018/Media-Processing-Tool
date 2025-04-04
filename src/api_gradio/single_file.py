@@ -1,4 +1,6 @@
 import os
+import shutil
+import tempfile
 
 from toolbox.utils import regularize_path
 
@@ -16,6 +18,16 @@ from file_manipulation.convert import (
     convert_media
 )
 
+temp_file = None
+
+def make_temp_copy(src_path:str)->str:
+    global temp_file
+    _, file_extension = os.path.splitext(src_path)
+    if temp_file is not None and os.path.exists(temp_file):
+        os.unlink(temp_file)
+    with tempfile.NamedTemporaryFile(mode='w', suffix=file_extension, delete=False) as temp_path:
+        temp_file = temp_path.name
+    return shutil.copy(src_path, temp_file)
 
 def cut_video(video_path: str, start, end) -> str:
     video_path = regularize_path(video_path)
@@ -23,21 +35,17 @@ def cut_video(video_path: str, start, end) -> str:
         raise Exception(f"{video_path} does not exit")
 
     path = video_cut(video_path, start=start, end=end)
-    return path
+    return make_temp_copy(path)
 
-def convert_video_to_mp3(video_path: str) -> tuple[str, str | None]:
+
+def convert_media_to_media(video_path: str, ext: str) -> tuple[str,str|None,str|None]:
     try:
-        path = convert_media(regularize_path(video_path))
-        return path, path
+        path = convert_media(regularize_path(video_path), ext)
+        if ext in ["mp4", "mov", "avi", "webm", "mkv"]:
+            return path, make_temp_copy(path), None
+        return path, None, make_temp_copy(path)
     except Exception as e:
-        return f"Error: {str(e)}", None
-
-
-def convert_video_to_video(video_path: str, ext: str) -> str:
-    try:
-        return convert_media(regularize_path(video_path), ext)
-    except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}", None, None
 
 
 def modify_audio(video_path: str, audio_path: str, opt: str = "replace") -> tuple[str, str | None]:

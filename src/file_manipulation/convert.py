@@ -1,8 +1,15 @@
 import os
 import ffmpeg
 
+from ProgressBar import progress_bar
+from video_modif import get_video_duration
 
-# TODO: add start_time: int, end_time: int in seconds
+
+# FIXME: not working: webm -> return code error 1
+# FIXME: not working: ogg -> return code error 1
+# FIXME: working but: mov -> Video does not have browser-compatible container or codec. Converting to mp4.
+# FIXME: working but: avi -> Video does not have browser-compatible container or codec. Converting to mp4.
+# FIXME: working but: mp4 -> Video does not have browser-compatible container or codec. Converting to mp4.
 def convert_media(input_path: str, ext: str) -> str:
     """
     Convert a media file (video or audio) to another format
@@ -14,11 +21,27 @@ def convert_media(input_path: str, ext: str) -> str:
 
     input_stream = ffmpeg.input(input_path)
 
-    output = ffmpeg.output(input_stream, output_path)
+    output = ffmpeg.output(
+        input_stream,
+        output_path,
+        vcodec='hevc_nvenc',
+        pix_fmt='yuv420p',
+        **{'stats': None, 'progress': 'pipe:1'}  # Force progress output
+    )
+    
+    output = ffmpeg.overwrite_output(output)
+    process = ffmpeg.run_async(output, pipe_stdout=True, pipe_stderr=True)
 
-    output.overwrite_output().run()
+    progress_bar(get_video_duration(input_path), process)
+    return_code = process.wait()
 
-    return output_path
+    if return_code == 0:
+        print(f"\nConversion completed successfully")
+        return output_path
+    else:
+        print(f"\nConversion failed with return code {return_code}")
+        return ""
+
 
 
 if __name__ == "__main__":

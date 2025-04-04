@@ -53,35 +53,22 @@ class GradioManager:
                     cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time],
                                         outputs=[cut_output, cut_video_output], )
 
-                with gr.Tab("Convert Video to MP3"):
-                    with gr.Row():
-                        with gr.Column():
-                            with gr.Row(equal_height=True):
-                                video_mp4_input = gr.Textbox(label="Video Path", scale=8)
-                                btn_chose_mp4_video = gr.Button("📂", scale=1)
-                            convert_mp4_btn = gr.Button("Convert to MP3")
-                        with gr.Column():
-                            convert_mp4_output = gr.Textbox(label="Result", interactive=False)
-                            convert_audio_output = gr.Audio()
-
-                    btn_chose_mp4_video.click(get_file, inputs=video_mp4_input, outputs=video_mp4_input)
-                    convert_mp4_btn.click(convert_video_to_mp3, inputs=video_mp4_input,
-                                          outputs=[convert_mp4_output, convert_audio_output])
-
-                with gr.Tab("Convert Video to Video"):
+                with gr.Tab("Convert Media"):
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
                                 video_to_convert = gr.Textbox(label="Video Path", placeholder="required", scale=8)
                                 btn_chose_video_to_convert = gr.Button("📂", scale=1)
                                 chose_ext = gr.Dropdown(label="Select an extension",
-                                                        choices=["mp4", "mov", "avi", "webm", "mkv"])
+                                                        choices=["mp4", "mov", "avi", "webm", "mkv", "mp3", "wav", "ogg", "flac"])
                             conv_btn = gr.Button("Convert")
                         with gr.Column():
-                            conv_output = gr.Textbox(label="Result", interactive=False)
+                            convert_output_text = gr.Textbox(label="Result", interactive=False)
+                            convert_output_audio = gr.Audio()
+                            convert_output_video = gr.Video(sources=["upload"])
 
                     btn_chose_video_to_convert.click(get_file, inputs=video_to_convert, outputs=video_to_convert)
-                    conv_btn.click(convert_video_to_video, inputs=[video_to_convert, chose_ext], outputs=conv_output)
+                    conv_btn.click(convert_media_to_media, inputs=[video_to_convert, chose_ext], outputs=[convert_output_text, convert_output_video, convert_output_audio])
 
                 with gr.Tab("Modify Audio in Video"):
                     with gr.Row():
