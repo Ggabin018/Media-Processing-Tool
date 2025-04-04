@@ -20,11 +20,11 @@ signal.signal(signal.SIGTERM, on_close)
 
 save_path = "save.json"
 
-params = Params(save_path)
+Params().load_params_from_json(save_path)
 
 
 def apply_option(max_workers: int) -> str:
-    params.save_params_to_json({"max_workers": max_workers}, save_path)
+    Params.save_params_to_json({"max_workers": max_workers}, save_path)
     return f"Save {datetime.datetime.now()}"
 
 
