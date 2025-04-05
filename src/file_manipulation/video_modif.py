@@ -129,7 +129,7 @@ def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -
         else:
             # Frame-accurate trimming: slower but precise
 
-            stream = ffmpeg.input(input_video)
+            stream = ffmpeg.input(input_video, hwaccel='cuda')
 
             vid = aud = None
             if start and end:

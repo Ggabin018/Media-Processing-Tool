@@ -54,7 +54,7 @@ def modify_audio(video_path: str, audio_path: str, opt: str = "replace") -> tupl
             path = audio_replace(regularize_path(video_path), regularize_path(audio_path))
         else:
             path = audio_combine(regularize_path(video_path), regularize_path(audio_path))
-        return path, path
+        return path, make_temp_copy(path)
     except Exception as e:
         return f"Error: {str(e)}", None
 
@@ -65,6 +65,6 @@ def compress_vid(video_path: str, bitrate: int = 8000):
         output_folder = os.path.join(dir_path, "output")
         os.makedirs(output_folder, exist_ok=True)
         path = video_compress(video_path, target_bitrate=bitrate)
-        return path, path
+        return path, make_temp_copy(path)
     except Exception as e:
         return f"Error: {str(e)}", None

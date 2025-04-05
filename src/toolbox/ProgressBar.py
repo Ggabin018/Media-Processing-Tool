@@ -6,7 +6,7 @@ from toolbox.utils import format_time
 def progress_bar(duration: float, process):
     progress_buffer = ""
     progress_info = {}
-    bar_width = 100
+    bar_width = 50
 
     while process.poll() is None:
         char = process.stdout.read(1).decode('utf-8', errors='replace')
@@ -48,6 +48,6 @@ def progress_bar(duration: float, process):
 
     sys.stdout.write(f"\r{' ' * 150}\r")
     sys.stdout.write(
-        f"\r[{'█' * 100}] 100% | Time: {format_time(duration)} / {format_time(duration)}\n"
+        f"\r[{'█' * bar_width}] 100% | Time: {format_time(duration)} / {format_time(duration)}\n"
     )
     sys.stdout.flush()
