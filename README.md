@@ -27,6 +27,7 @@ FFMPEG as editor.
     * [Setup](#setup-1)
 * [Updating](#updating)
 * [Starting GUI](#starting-gui)
+* [Codecs Information](#codecs-information)
 
 ## Installation
 
@@ -101,3 +102,18 @@ FFMPEG as editor.
 
 ### ubuntu
     ./webui.sh
+
+# Codecs Information
+## Video Codecs:
+- libx264 (H.264) - Best all-around browser compatibility
+- libvpx-vp9 (VP9) - Good for web, slightly less universal than H.264
+- h264_nvenc - If you need NVIDIA hardware acceleration with H.264
+- hevc_nvenc (H.265/HEVC) - NVIDIA hardware acceleration, limited browser compatibility
+
+# Audio Codecs:
+- aac - Best browser compatibility
+- libopus - Good quality at low bitrates, but less universal
+
+# Container Format:
+- mp4 extension for H.264/AAC
+- webm extension for VP9/Opus

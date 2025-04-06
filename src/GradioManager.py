@@ -1,3 +1,5 @@
+import time
+
 import gradio as gr
 import datetime
 import signal
@@ -20,15 +22,25 @@ signal.signal(signal.SIGTERM, on_close)
 
 save_path = "save.json"
 
-Params().load_params_from_json(save_path)
+params = Params()
+params.load_params_from_json(save_path)
 
 
-def apply_option(max_workers: int) -> str:
-    Params.save_params_to_json({"max_workers": max_workers}, save_path)
+def apply_option(max_workers: int, vcodec) -> str:
+    Params.save_params_to_json({"max_workers": max_workers, "vcodec": vcodec}, save_path)
+    params.load_params_from_json(save_path)
     return f"Save {datetime.datetime.now()}"
 
 
 # region Gradio Manager
+
+def ui_reload():
+    return (
+        params.get_max_workers(),
+        params.get_vcodec(),
+        params.get_vcodec()
+    )
+
 
 class GradioManager:
     def __init__(self):
@@ -113,7 +125,8 @@ class GradioManager:
                                 s_compr_btn_get_v_path = gr.Button("📂", scale=1)
                             s_compr_bitrate = gr.Textbox(label="Target bitrate", value="8000")
                             s_compr_min_res = gr.Textbox(label="Minimum resolution", value="1080")
-                            s_compr_vcodec = gr.Dropdown(label="Video codec", choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
+                            s_compr_vcodec = gr.Dropdown(label="Video codec", value=params.get_vcodec(),
+                                                         choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
                             s_compr_run = gr.Button("Compress")
                         with gr.Column():
                             s_cv_output = gr.Textbox(label="Result", interactive=False)
@@ -224,19 +237,19 @@ class GradioManager:
             with gr.Tab("Options"):
                 with gr.Row():
                     with gr.Column():
-                        opt_max_workers = gr.Textbox(label="Max workers:", value="5")
+                        opt_max_workers = gr.Textbox(label="Max workers:", value=params.get_max_workers())
+                        opt_vcodec = gr.Dropdown(label="Default video codec:", value=params.get_vcodec(),
+                                                 choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
                     with gr.Column():
-                        opt_btn_save = gr.Button("Save options")
+                        with gr.Row():
+                            opt_btn_save = gr.Button("Save options")
+                            opt_btn_reload_ui = gr.Button("Reload UI")
                         opt_output = gr.Textbox(label="")
 
-                opt_btn_save.click(apply_option, inputs=[opt_max_workers], outputs=opt_output)
+                opt_btn_save.click(apply_option, inputs=[opt_max_workers, opt_vcodec], outputs=opt_output)
+                opt_btn_reload_ui.click(ui_reload, outputs=[opt_max_workers, opt_vcodec, s_compr_vcodec])
 
     def launch(self):
         self.interface.launch(inbrowser=True)
 
-
 # endregion
-
-if "__main__" == __name__:
-    gr_man = GradioManager()
-    gr_man.launch()

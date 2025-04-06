@@ -1,3 +1,4 @@
 {
-    "max_workers": "5"
+    "max_workers": "5",
+    "vcodec": "hevc_nvenc"
 }
