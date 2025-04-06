@@ -1,12 +1,13 @@
 import sys
 
 from toolbox.utils import format_time
-
+import time
 
 def progress_bar(duration: float, process):
     progress_buffer = ""
     progress_info = {}
     bar_width = 50
+    started_time = time.time()
 
     while process.poll() is None:
         char = process.stdout.read(1).decode('utf-8', errors='replace')
@@ -38,8 +39,8 @@ def progress_bar(duration: float, process):
                 # Display
                 sys.stdout.write(
                     f"\r[{bar}] {percentage:3d}% | "
-                    f"Time: {out_time} / {format_time(duration)} | "
-                    f"FPS: {fps} | Speed: {speed}"
+                    f"{out_time} / {format_time(duration)} | "
+                    f"{speed} | {format_time(time.time() - started_time)}\n"
                 )
                 sys.stdout.flush()
 
@@ -48,6 +49,6 @@ def progress_bar(duration: float, process):
 
     sys.stdout.write(f"\r{' ' * 150}\r")
     sys.stdout.write(
-        f"\r[{'█' * bar_width}] 100% | Time: {format_time(duration)} / {format_time(duration)}\n"
+        f"\r[{'█' * bar_width}] 100% | Time: {format_time(duration)} / {format_time(duration)}| {format_time(time.time() - started_time)}\n"
     )
     sys.stdout.flush()

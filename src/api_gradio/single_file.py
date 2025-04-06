@@ -3,7 +3,7 @@ import shutil
 import tempfile
 
 from toolbox.utils import regularize_path
-from file_manipulation.video_manip import video_cut, video_compress
+from file_manipulation.video_manip import video_cut, video_compress, is_video
 from file_manipulation.audio_manip import audio_replace, audio_combine
 from file_manipulation.media_converter import convert_media
 
@@ -18,17 +18,19 @@ def make_temp_copy(src_path: str) -> str | None:
             os.unlink(temp_file)
         with tempfile.NamedTemporaryFile(mode='w', suffix=file_extension, delete=False) as temp_path:
             temp_file = temp_path.name
-        return shutil.copy(src_path, temp_file)
+        tmp = shutil.copy(src_path, temp_file)
+        if is_video(tmp):
+            return video_compress(tmp, target_bitrate=1000, min_resolution=480, vcodec="libx264")
     except Exception:
         return None
 
 
-def cut_video(video_path: str, start, end) -> tuple[str, str | None]:
+def cut_video(video_path: str, start: str | None, end: str | None, fast_flag: bool = False) -> tuple[str, str | None]:
     video_path = regularize_path(video_path)
     if not os.path.exists(video_path):
         return f"{video_path} does not exit", None
 
-    path = video_cut(video_path, start=start, end=end)
+    path = video_cut(video_path, start=start, end=end, fast_flag=fast_flag)
     return path, make_temp_copy(path)
 
 

@@ -224,7 +224,7 @@ def video_upscale(input_video: str, factor: int) -> str:
 
 
 def video_compress(video_path: str, output_filename: str = "", target_bitrate: int = 8000,
-                   min_resolution: int = 1080) -> str:
+                   min_resolution: int = 1080, vcodec: str = "hevc_nvenc") -> str:
     """
     Convert video to 1080p with CUDA acceleration while keeping aspect ratio
 
@@ -267,7 +267,7 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
                 video,
                 audio,
                 output_filename,
-                vcodec='hevc_nvenc',
+                vcodec=vcodec,
                 video_bitrate=f'{target_bitrate}k',
                 acodec='copy',
                 pix_fmt='yuv420p',
@@ -276,7 +276,6 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
 
             output = ffmpeg.overwrite_output(output)
 
-            # Start ffmpeg process
             print(f"Compressing {os.path.basename(video_path)} to {os.path.basename(output_filename)}")
             process = ffmpeg.run_async(output, pipe_stdout=True)
 
@@ -290,12 +289,11 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
                 print(f"Compression completed successfully")
                 return output_filename
             else:
-                print(f"\nCompression failed with return code {return_code}")
-                return ""
+                return f"\nCompression failed with return code {return_code}"
         else:
             return f"{video_path} is already < to {min_resolution}."
 
     except ffmpeg.Error as e:
         return f"ffmpeg error: {e.stderr.decode() if hasattr(e.stderr, 'decode') else e.stderr}"
     except Exception as e:
-        return f"Failure with {video_path}. Error: {str(e)}"
+        return f"Error: {str(e)}"

@@ -44,13 +44,23 @@ class GradioManager:
                                 btn_chose_video_to_cut = gr.Button("📂", scale=1)
                             start_time = gr.Textbox(label="Start Time (HH:MM:SS or seconds)")
                             end_time = gr.Textbox(label="End Time (HH:MM:SS) or seconds")
+                            video_cut_trimming_mode = gr.Radio(
+                                choices=[
+                                    "Frame-accurate trimming: slower but precise",
+                                    "Fast seeking: quick but less precise trimming"
+                                ],
+                                value="Frame-accurate trimming: slower but precise",
+                                label="Trimming Mode",
+                                type='index'
+                            )
+
                             cut_video_btn = gr.Button("Cut Video")
                         with gr.Column():
                             cut_output = gr.Textbox(label="Result", interactive=False)
                             cut_video_output = gr.Video(sources=["upload"])
 
                     btn_chose_video_to_cut.click(get_file, inputs=video_input, outputs=video_input)
-                    cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time],
+                    cut_video_btn.click(cut_video, inputs=[video_input, start_time, end_time, video_cut_trimming_mode],
                                         outputs=[cut_output, cut_video_output])
 
                 with gr.Tab("Convert Media"):
@@ -60,7 +70,8 @@ class GradioManager:
                                 video_to_convert = gr.Textbox(label="Video Path", placeholder="required", scale=8)
                                 btn_chose_video_to_convert = gr.Button("📂", scale=1)
                                 chose_ext = gr.Dropdown(label="Select an extension",
-                                                        choices=["mp4", "mov", "avi", "webm", "mkv", "mp3", "wav", "ogg", "flac"])
+                                                        choices=["mp4", "mov", "avi", "webm", "mkv", "mp3", "wav",
+                                                                 "ogg", "flac"])
                             conv_btn = gr.Button("Convert")
                         with gr.Column():
                             convert_output_text = gr.Textbox(label="Result", interactive=False)
@@ -68,7 +79,8 @@ class GradioManager:
                             convert_output_video = gr.Video(sources=["upload"])
 
                     btn_chose_video_to_convert.click(get_file, inputs=video_to_convert, outputs=video_to_convert)
-                    conv_btn.click(convert_media_to_media, inputs=[video_to_convert, chose_ext], outputs=[convert_output_text, convert_output_video, convert_output_audio])
+                    conv_btn.click(convert_media_to_media, inputs=[video_to_convert, chose_ext],
+                                   outputs=[convert_output_text, convert_output_video, convert_output_audio])
 
                 with gr.Tab("Modify Audio in Video"):
                     with gr.Row():
