@@ -2,8 +2,22 @@ import os
 import ffmpeg
 
 from toolbox.ProgressBar import progress_bar
-from file_manipulation.video_manip import get_video_duration
 
+def get_media_duration(path: str) -> float | str:
+    """
+    :param path: path to audio
+    :return: audio duration
+    """
+    try:
+        probe = ffmpeg.probe(path)
+        duration = float(probe['format']['duration'])
+        return duration
+    except ffmpeg.Error as e:
+        return f"ffmpeg error: {e.stderr}"
+    except KeyError:
+        return "Could not find duration information in the video file"
+    except Exception as e:
+        return f"Unexpected error: {str(e)}"
 
 # FIXME: not working: webm -> Conversion failed!
 # FIXME: not working: ogg -> Conversion failed!
@@ -15,7 +29,7 @@ def convert_media(input_path: str, ext: str) -> str:
     if not os.path.exists(input_path):
         raise Exception(f"{input_path} doesn't exist")
 
-    duration = get_video_duration(input_path)
+    duration = get_media_duration(input_path)
     if type(duration) == str:
         return duration
 

@@ -7,24 +7,36 @@ import json
 import subprocess
 
 from math import ceil
-from moviepy.editor import VideoFileClip, AudioFileClip
 from file_manipulation.video_manip import get_video_duration
 
 
-def get_audio_duration(audio_path: str) -> float:
-    """
-    :param audio_path: chemin absolu du fichier audio
-    :return: durée du fichier audio en secondes
-    """
-    ffmpeg_command = f'ffprobe -v error -show_entries format=duration -of csv=p=0 "{audio_path}"'
+def is_audio(path: str):
+    _, ext = os.path.splitext(path)
+    return ext in [".mp3", ".wav", ".ogg", ".flac"]
 
-    duration_info = os.popen(ffmpeg_command).read().strip()
 
-    return float(duration_info)
+def get_audio_duration(audio_path: str) -> float | str:
+    """
+    :param audio_path: path to audio
+    :return: audio duration
+    """
+    if not is_audio(audio_path):
+        return f"Error: Not a audio file"
+    try:
+        probe = ffmpeg.probe(audio_path)
+        duration = float(probe['format']['duration'])
+        return duration
+    except ffmpeg.Error as e:
+        return f"ffmpeg error: {e.stderr}"
+    except KeyError:
+        return "Could not find duration information in the video file"
+    except Exception as e:
+        return f"Unexpected error: {str(e)}"
 
 
 def get_loudness(file_path):
     """Get the integrated loudness of an audio file"""
+    json_text = ""
     try:
         # loudnorm filter
         args = (
@@ -46,18 +58,22 @@ def get_loudness(file_path):
 
         # Extract JSON from stderr after "[Parsed_loudnorm_0 @ ...]"
         stderr = process.stderr
-        json_match = stderr.rfind('{\n')
-        if json_match >= 0:
-            json_text = stderr[json_match:]
+        json_match_start = stderr.rfind('{\n')
+        json_match_end = stderr.rfind('}\n')
+        if 0 <= json_match_start < json_match_end:
+            json_text = stderr[json_match_start:json_match_end + 1]
             loudness_info = json.loads(json_text)
             return float(loudness_info.get('input_i', -24.0))
 
         logging.error("Error: get_loudness -> returning default value")
-        return -24.0
 
-    except (ffmpeg.Error, json.JSONDecodeError, ValueError, IndexError) as e:
-        logging.error(f"Error(get_loudness): {e}")
-        return -24.0
+    except ffmpeg.Error as e:
+        logging.error(f"Error(get_loudness): ffmpeg: {e}")
+    except json.JSONDecodeError as e:
+        logging.error(f"Error(get_loudness): json: {e}\n{json_text}\n")
+    except (ValueError, IndexError) as e:
+        logging.error(f"Error(get_loudness): ValueError or IndexError: {e}\n{json_text}\n")
+    return -24.0
 
 
 def apply_reverb(input_path: str) -> str:
@@ -201,45 +217,85 @@ def merge_audio(audio1_path: str, audio2_path: str, output_mp3_path: str) -> Non
 
 def mix_audio_and_export(video_path: str, audio_path: str) -> str:
     """
-    merge audio in video
-    :param video_path: path piste vidéo
-    :param audio_path: path piste audio
-    :return path audio de sortie
+    Merge audio in video using ffmpeg
+    :param video_path: path to video file
+    :param audio_path: path to audio file
+    :return: path to output mixed audio file
     """
     output_mp3_path = os.path.splitext(video_path)[0] + "__mix_sound.mp3"
 
-    video_clip = VideoFileClip(video_path)
+    # Get durations
+    video_duration = get_video_duration(video_path)
+    audio_duration = get_audio_duration(audio_path)
 
-    audio_clip_video = AudioFileClip(video_path)
-    audio_clip_from_audiofile = AudioFileClip(audio_path)
+    if isinstance(video_duration, str):
+        raise Exception(f"Video duration error: {video_duration}")
+    if isinstance(audio_duration, str):
+        raise Exception(f"Audio duration error: {audio_duration}")
 
-    # multiply audio if shorter
-    if audio_clip_from_audiofile.duration <= audio_clip_video.duration:
-        mul = audio_clip_video.duration // audio_clip_from_audiofile.duration + 1
-        audio_clip_from_audiofile.close()
-        multiply_audio(audio_path, audio_path, mul)
-        audio_clip_from_audiofile = AudioFileClip(audio_path)
+    # Extract audio from video and convert to consistent format
+    video_audio_path = os.path.splitext(video_path)[0] + "__video_audio.wav"
+    (
+        ffmpeg.input(video_path)
+        .output(video_audio_path, acodec='pcm_s16le', ar=44100, ac=2)
+        .overwrite_output()
+        .run()
+    )
 
-    # troncate audio file if longer
-    audio_clip_from_audiofile = audio_clip_from_audiofile.subclip(0, audio_clip_video.duration)
+    # Convert input audio to same format if needed
+    converted_audio_path = os.path.splitext(audio_path)[0] + "__converted.wav"
+    (
+        ffmpeg.input(audio_path)
+        .output(converted_audio_path, acodec='pcm_s16le', ar=44100, ac=2)
+        .overwrite_output()
+        .run()
+    )
+    audio_path = converted_audio_path
 
-    # cut to video duration
-    audio_clip_video.set_duration(video_clip.duration)
-    audio_clip_from_audiofile.set_duration(video_clip.duration)
+    # Multiply audio if shorter than video
+    temp_audio_path = None
+    if audio_duration < video_duration:
+        multiplier = ceil(video_duration / audio_duration)
+        temp_audio_path = os.path.splitext(audio_path)[0] + "__temp.wav"
+        multiply_audio(audio_path, temp_audio_path, multiplier)
+        audio_path = temp_audio_path
 
-    # merge audioclip
-    audio_clip_video.write_audiofile(video_path + ".mp3", codec='mp3')
-    audio_clip_from_audiofile.write_audiofile(audio_path + ".mp3", codec='mp3')
+    try:
+        # Mix the two audio files
+        # I: Target integrated loudness
+        # TP: True peak limit
+        # LRA=11: Loudness range target
+        (
+            ffmpeg.filter([
+                ffmpeg.input(video_audio_path),
+                ffmpeg.input(audio_path)
+            ], 'amix', inputs=2, duration='shortest')
+            .filter('loudnorm', I=-16, TP=-1.5, LRA=11)
+            .output(output_mp3_path, acodec='libmp3lame', ar=44100, ac=2, audio_bitrate='192k')
+            .overwrite_output()
+            .run()
+        )
 
-    # create new audio
-    merge_audio(video_path + ".mp3", audio_path + ".mp3", output_mp3_path)
+        # Ensure the mixed audio matches video duration
+        mixed_duration = get_audio_duration(output_mp3_path)
+        if mixed_duration > video_duration:
+            temp_output = output_mp3_path + ".tmp.mp3"
+            (
+                ffmpeg.input(output_mp3_path)
+                .output(temp_output, acodec='libmp3lame', t=video_duration)
+                .overwrite_output()
+                .run()
+            )
+            os.replace(temp_output, output_mp3_path)
 
-    video_clip.close()
-    audio_clip_video.close()
-    audio_clip_from_audiofile.close()
-
-    os.remove(video_path + ".mp3")
-    os.remove(audio_path + ".mp3")
+    finally:
+        # Clean up temporary files
+        for temp_file in [video_audio_path, converted_audio_path, temp_audio_path]:
+            if temp_file and os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
 
     return output_mp3_path
 

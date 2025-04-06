@@ -48,6 +48,8 @@ def get_video_duration(video_path: str) -> float | str:
         return f"ffmpeg error: {e.stderr}"
     except KeyError:
         return "Could not find duration information in the video file"
+    except Exception as e:
+        return f"Unexpected error: {str(e)}"
 
 
 def get_resolution(video_path: str) -> tuple[int | str, int | None]:
