@@ -55,12 +55,9 @@ def modify_audio(video_path: str, audio_path: str, opt: str = "replace") -> tupl
         return f"Error: {str(e)}", None
 
 
-def compress_vid(video_path: str, bitrate: int = 8000):
+def compress_vid(video_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec: str = "hevc_nvenc"):
     try:
-        dir_path = os.path.split(video_path)[0]
-        output_folder = os.path.join(dir_path, "output")
-        os.makedirs(output_folder, exist_ok=True)
-        path = video_compress(video_path, target_bitrate=bitrate)
+        path = video_compress(video_path, target_bitrate=bitrate, min_resolution=min_res, vcodec=vcodec)
         return path, make_temp_copy(path)
     except Exception as e:
         return f"Error: {str(e)}", None
