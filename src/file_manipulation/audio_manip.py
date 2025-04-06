@@ -8,7 +8,7 @@ import subprocess
 
 from math import ceil
 from moviepy.editor import VideoFileClip, AudioFileClip
-from file_manipulation.video_modif import get_video_duration
+from file_manipulation.video_manip import get_video_duration
 
 
 def get_audio_duration(audio_path: str) -> float:
@@ -26,7 +26,7 @@ def get_audio_duration(audio_path: str) -> float:
 def get_loudness(file_path):
     """Get the integrated loudness of an audio file"""
     try:
-        # Create and compile the ffmpeg command with loudnorm filter
+        # loudnorm filter
         args = (
             ffmpeg
             .input(file_path)
@@ -35,30 +35,28 @@ def get_loudness(file_path):
             .compile()
         )
 
-        # Add -hide_banner to reduce output noise
+        # reduce output noise
         args.insert(1, '-hide_banner')
 
-        # Run the command and capture output
         process = subprocess.run(
             args,
             stderr=subprocess.PIPE,
             text=True
         )
 
-        # Extract JSON from stderr - it's at the end after "[Parsed_loudnorm_0 @ ...]"
+        # Extract JSON from stderr after "[Parsed_loudnorm_0 @ ...]"
         stderr = process.stderr
-        json_match = stderr.rfind('{\n')  # Find the start of the JSON block
-
+        json_match = stderr.rfind('{\n')
         if json_match >= 0:
-            json_text = stderr[json_match:]  # Extract everything from the JSON start to the end
+            json_text = stderr[json_match:]
             loudness_info = json.loads(json_text)
             return float(loudness_info.get('input_i', -24.0))
 
-        logging.WARN("JSON block not found")
+        logging.error("Error: get_loudness -> returning default value")
         return -24.0
 
     except (ffmpeg.Error, json.JSONDecodeError, ValueError, IndexError) as e:
-        logging.ERROR(f"Error: {e}")
+        logging.error(f"Error(get_loudness): {e}")
         return -24.0
 
 
@@ -145,7 +143,7 @@ def multiply_audio(input_audio_path: str, output_audio_path: str, multiplier: in
             shutil.copy(input_audio_path, temp_input_path)
     if temp_input_path:
         input_audio_path = temp_input_path
-        
+
     # temporary text file for concat demuxer
     with tempfile.NamedTemporaryFile(mode='w', suffix='.txt', delete=False) as temp_file:
         for _ in range(multiplier):
@@ -195,10 +193,10 @@ def merge_audio(audio1_path: str, audio2_path: str, output_mp3_path: str) -> Non
     input2 = ffmpeg.input(audio2_path)
 
     ffmpeg.output(input1, input2,
-             output_mp3_path,
-             acodec='libmp3lame',
-             filter_complex=filter_complex
-            ).overwrite_output().run()
+                  output_mp3_path,
+                  acodec='libmp3lame',
+                  filter_complex=filter_complex
+                  ).overwrite_output().run()
 
 
 def mix_audio_and_export(video_path: str, audio_path: str) -> str:
@@ -257,9 +255,12 @@ def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.m
     """
     audio_duration = get_audio_duration(audio_path)
     video_duration = get_video_duration(video_path)
+    if type(video_duration) == str:
+        return video_duration
+
     # need audio duration -gt video
     if audio_duration < video_duration:
-        multiply_audio(audio_path, audio_path, ceil(video_duration/audio_duration))
+        multiply_audio(audio_path, audio_path, ceil(video_duration / audio_duration))
 
     output_path = os.path.splitext(video_path)[0] + name_add
 
@@ -269,7 +270,6 @@ def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.m
     video_stream = video_input.video
     audio_stream = audio_input.audio
 
-    # Set up output options
     output_args = {
         'c:v': 'hevc_nvenc',
         'c:a': 'copy',
@@ -301,10 +301,3 @@ def audio_combine(video_path: str, audio_path: str, compress: bool = True) -> st
     output_path = audio_replace(video_path, new_audio_path, "__combine.mp4", compress)
     os.remove(new_audio_path)
     return output_path
-
-
-if __name__ == "__main__":
-    v_path = "/home/gabin/Media-Processing-Tool/tests/videos/test.mp4"
-    a_path = "/home/gabin/Media-Processing-Tool/tests/audios/sample1.mp3"
-    o_path = "/home/gabin/Media-Processing-Tool/tests/audios/test__merge.mp3"
-    audio_replace(v_path, a_path)

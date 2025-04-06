@@ -2,15 +2,16 @@ import os
 import random
 from concurrent.futures import ThreadPoolExecutor
 
-from file_manipulation.audio_modif import audio_combine, audio_replace
-from file_manipulation.video_modif import video_compress
-from file_manipulation.convert import convert_media
+from file_manipulation.audio_manip import audio_combine, audio_replace
+from file_manipulation.video_manip import video_compress
+from file_manipulation.media_converter import convert_media
 
 
 def dir_compress_videos(dir_path: str, bitrate: int = 8000) -> str:
     """
     compress all videos in a subdir output
     :param dir_path: chemin absolue du dossier
+    :param bitrate: bitrate in kbps (default: 8000)
     """
     output_folder = os.path.join(dir_path, "output")
     os.makedirs(output_folder, exist_ok=True)

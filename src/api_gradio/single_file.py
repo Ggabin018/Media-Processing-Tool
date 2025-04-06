@@ -3,33 +3,27 @@ import shutil
 import tempfile
 
 from toolbox.utils import regularize_path
-
-from file_manipulation.video_modif import (
-    video_cut,
-    video_compress
-)
-
-from file_manipulation.audio_modif import (
-    audio_replace,
-    audio_combine
-)
-
-from file_manipulation.convert import (
-    convert_media
-)
+from file_manipulation.video_manip import video_cut, video_compress
+from file_manipulation.audio_manip import audio_replace, audio_combine
+from file_manipulation.media_converter import convert_media
 
 temp_file = None
 
-def make_temp_copy(src_path:str)->str:
-    global temp_file
-    _, file_extension = os.path.splitext(src_path)
-    if temp_file is not None and os.path.exists(temp_file):
-        os.unlink(temp_file)
-    with tempfile.NamedTemporaryFile(mode='w', suffix=file_extension, delete=False) as temp_path:
-        temp_file = temp_path.name
-    return shutil.copy(src_path, temp_file)
 
-def cut_video(video_path: str, start, end) -> tuple[str, str|None]:
+def make_temp_copy(src_path: str) -> str | None:
+    global temp_file
+    try:
+        _, file_extension = os.path.splitext(src_path)
+        if temp_file is not None and os.path.exists(temp_file):
+            os.unlink(temp_file)
+        with tempfile.NamedTemporaryFile(mode='w', suffix=file_extension, delete=False) as temp_path:
+            temp_file = temp_path.name
+        return shutil.copy(src_path, temp_file)
+    except Exception:
+        return None
+
+
+def cut_video(video_path: str, start, end) -> tuple[str, str | None]:
     video_path = regularize_path(video_path)
     if not os.path.exists(video_path):
         return f"{video_path} does not exit", None
@@ -38,7 +32,7 @@ def cut_video(video_path: str, start, end) -> tuple[str, str|None]:
     return path, make_temp_copy(path)
 
 
-def convert_media_to_media(video_path: str, ext: str) -> tuple[str,str|None,str|None]:
+def convert_media_to_media(video_path: str, ext: str) -> tuple[str, str | None, str | None]:
     try:
         path = convert_media(regularize_path(video_path), ext)
         if ext in ["mp4", "mov", "avi", "webm", "mkv"]:

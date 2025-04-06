@@ -2,7 +2,7 @@ import os
 import ffmpeg
 
 from toolbox.ProgressBar import progress_bar
-from file_manipulation.video_modif import get_video_duration
+from file_manipulation.video_manip import get_video_duration
 
 
 # FIXME: not working: webm -> return code error 1
@@ -17,6 +17,10 @@ def convert_media(input_path: str, ext: str) -> str:
     if not os.path.exists(input_path):
         raise Exception(f"{input_path} doesn't exist")
 
+    duration = get_video_duration(input_path)
+    if type(duration) == str:
+        return duration
+
     output_path = os.path.splitext(input_path)[0] + "." + ext
 
     input_stream = ffmpeg.input(input_path)
@@ -28,11 +32,11 @@ def convert_media(input_path: str, ext: str) -> str:
         pix_fmt='yuv420p',
         **{'stats': None, 'progress': 'pipe:1'}  # Force progress output
     )
-    
+
     output = ffmpeg.overwrite_output(output)
     process = ffmpeg.run_async(output, pipe_stdout=True, pipe_stderr=True)
 
-    progress_bar(get_video_duration(input_path), process)
+    progress_bar(duration, process)
     return_code = process.wait()
 
     if return_code == 0:
@@ -41,9 +45,3 @@ def convert_media(input_path: str, ext: str) -> str:
     else:
         print(f"\nConversion failed with return code {return_code}")
         return ""
-
-
-
-if __name__ == "__main__":
-    path = "/home/gabin/Media-Processing-Tool/tests/videos/test.mp4"
-    convert_media(path, "mp3")
