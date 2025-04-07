@@ -25,7 +25,7 @@ class TestParams(unittest.TestCase):
     def test_params_get_max_workers_default(self):
         params = Params()
         params.load_params_from_json("")
-        expected = "5"
+        expected = 5
         self.assertEqual(expected, params.get_max_workers())
         expected = {}
         self.assertEqual(expected, params.params_dict)

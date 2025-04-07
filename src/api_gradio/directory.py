@@ -1,5 +1,5 @@
 from file_manipulation.dir_manip import (
-    dir_audio_extract,
+    dir_convert_media,
     dir_audio_replace,
     dir_audio_combine,
     dir_convert_video_to_video,
@@ -8,9 +8,9 @@ from file_manipulation.dir_manip import (
 
 from toolbox.utils import regularize_path
 
-def directory_extract_audio(video_dir_path: str) -> str:
+def directory_media2media(video_dir_path: str, ext: str) -> str:
     try:
-        return dir_audio_extract(regularize_path(video_dir_path))
+        return dir_convert_media(regularize_path(video_dir_path), ext)
     except Exception as e:
         return f"Error: {str(e)}"
 
@@ -31,8 +31,8 @@ def directory_convert(dir_path: str, ext: str) -> str:
         return f"Error: {str(e)}"
 
 
-def directory_compress(dir_path: str, bitrate: int = 8000) -> str:
+def directory_compress(dir_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec="hevc_nvenc") -> str:
     try:
-        return dir_compress_videos(dir_path, bitrate)
+        return dir_compress_videos(dir_path, bitrate, min_res, vcodec)
     except Exception as e:
         return f"Error: {str(e)}"

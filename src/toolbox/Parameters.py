@@ -32,13 +32,13 @@ class Params(metaclass=SingletonMeta):
             self.params_dict = json.load(f)
         logging.info(f"Parameters successfully loaded from {filename}")
 
-    def get_max_workers(self) -> str:
+    def get_max_workers(self) -> int:
         """
         return number max of workers, default: 5
         """
         if "max_workers" in self.params_dict:
-            return self.params_dict["max_workers"]
-        return "5"
+            return int(self.params_dict["max_workers"])
+        return int(5)
 
     def get_vcodec(self) -> str:
         """

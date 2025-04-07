@@ -1,15 +1,14 @@
-import time
-
-import gradio as gr
 import datetime
 import signal
 import sys
 
-from toolbox.Parameters import Params
-from script_js import js
+import gradio as gr
+
+from api_gradio.directory import *
 from api_gradio.single_file import *
 from api_gradio.multiple_files import *
-from api_gradio.directory import *
+from script_js import js
+from toolbox.Parameters import Params
 from toolbox.tkinter_getters import *
 
 
@@ -36,9 +35,10 @@ def apply_option(max_workers: int, vcodec) -> str:
 
 def ui_reload():
     return (
-        params.get_max_workers(),
-        params.get_vcodec(),
-        params.get_vcodec()
+        params.get_max_workers(),  # opt_max_workers
+        params.get_vcodec(),  # opt_vcodec
+        params.get_vcodec(),  # s_compr_vcodec
+        params.get_vcodec()  # d_compr_vcodec
     )
 
 
@@ -136,20 +136,26 @@ class GradioManager:
                                       s_cv_output)
 
             with gr.Tab("Directory"):
-                with gr.Tab("Extract Audio from Directory"):
+                with gr.Tab("Convert medias"):
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
-                                d_extr_v_path = gr.Textbox(label="Directory Path", scale=8)
-                                d_extr_btn_get_v_path = gr.Button("📂", scale=1)
-                            d_extr_run = gr.Button("Extract Audio")
+                                d_conv_v_path = gr.Textbox(label="Directory Path", scale=8)
+                                d_conv_btn_get_v_path = gr.Button("📂", scale=1)
+                                d_conv_chose_ext = gr.Dropdown(label="Select an extension",
+                                                               choices=["mp4", "mov", "avi", "webm", "mkv", "mp3",
+                                                                        "wav",
+                                                                        "ogg", "flac"])
+                            d_conv_run = gr.Button("Convert")
                         with gr.Column():
-                            d_extr_output = gr.Textbox(label="Result")
+                            d_conv_output = gr.Textbox(label="Result", interactive=False)
 
-                    d_extr_btn_get_v_path.click(get_dir, inputs=d_extr_v_path, outputs=d_extr_v_path)
-                    d_extr_run.click(directory_extract_audio, inputs=d_extr_v_path, outputs=d_extr_output)
+                    d_conv_btn_get_v_path.click(get_dir, inputs=d_conv_v_path, outputs=d_conv_v_path)
+                    d_conv_run.click(directory_media2media, inputs=[d_conv_v_path, d_conv_chose_ext],
+                                     outputs=d_conv_output)
 
                 with gr.Tab("Modify audio"):
+                    gr.Markdown("Random choice mapping between videos and audios")
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
@@ -161,7 +167,7 @@ class GradioManager:
                             d_modif_mode_opt = gr.Dropdown(label="Select a mode", choices=["replace", "combine"])
                             d_modif_run = gr.Button("Batch Modify Audio")
                         with gr.Column():
-                            d_modif_output = gr.Textbox(label="Result")
+                            d_modif_output = gr.Textbox(label="Result", interactive=False)
 
                     d_modif_btn_get_v_path.click(get_dir, inputs=d_modif_v_path, outputs=d_modif_v_path)
                     d_modif_btn_get_a_path.click(get_dir, inputs=d_modif_a_path, outputs=d_modif_a_path)
@@ -169,19 +175,24 @@ class GradioManager:
                                       inputs=[d_modif_v_path, d_modif_a_path, d_modif_mode_opt],
                                       outputs=d_modif_output)
 
-                with gr.Tab("Compress to"):
+                with gr.Tab("Compress Videos"):
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
                                 d_compr_v_path = gr.Textbox(label="Video Directory Path", scale=8)
                                 d_compr_btn_get_v_path = gr.Button("📂", scale=1)
                             d_compr_bitrate = gr.Textbox(label="Bitrate wanted:", value="8000")
+                            d_compr_min_res = gr.Textbox(label="Minimum resolution", value="1080")
+                            d_compr_vcodec = gr.Dropdown(label="Video codec", value=params.get_vcodec(),
+                                                         choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
+
                             d_compr_run = gr.Button("Batch compress video")
                         with gr.Column():
-                            d_compr_output = gr.Textbox(label="Result")
+                            d_compr_output = gr.Textbox(label="Result", interactive=False)
 
                     d_compr_btn_get_v_path.click(get_dir, d_compr_v_path, d_compr_v_path)
-                    d_compr_run.click(directory_compress, [d_compr_v_path, d_compr_bitrate],
+                    d_compr_run.click(directory_compress,
+                                      [d_compr_v_path, d_compr_bitrate, d_compr_min_res, d_compr_vcodec],
                                       d_compr_output)
 
             with gr.Tab("Multiples Videos"):
@@ -197,7 +208,7 @@ class GradioManager:
                             m_extr_output = gr.Textbox(label="Result")
 
                     m_extr_btn_get_v_path.click(get_dir, inputs=m_extr_v_path, outputs=m_extr_v_path)
-                    m_extr_run.click(directory_extract_audio, inputs=m_extr_v_path, outputs=m_extr_output)
+                    m_extr_run.click(batch_extract_audio, inputs=m_extr_v_path, outputs=m_extr_output)
 
                 with gr.Tab("Modify audio"):
                     with gr.Row():
@@ -215,7 +226,7 @@ class GradioManager:
 
                     m_modif_btn_get_v_path.click(get_dir, inputs=m_modif_v_path, outputs=m_modif_v_path)
                     m_modif_btn_get_a_path.click(get_dir, inputs=m_modif_a_path, outputs=m_modif_a_path)
-                    m_modif_run.click(directory_audio_modify,
+                    m_modif_run.click(batch_modify_audio,
                                       inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode],
                                       outputs=m_modif_output)
 
@@ -231,13 +242,13 @@ class GradioManager:
                             m_compr_output = gr.Textbox(label="Result")
 
                     m_compr_get_v_path.click(get_dir, m_compr_v_path, m_compr_v_path)
-                    m_compr_run.click(directory_compress, [m_compr_v_path, m_compr_bitrate],
+                    m_compr_run.click(batch_compress, [m_compr_v_path, m_compr_bitrate],
                                       m_compr_output)
 
             with gr.Tab("Options"):
                 with gr.Row():
                     with gr.Column():
-                        opt_max_workers = gr.Textbox(label="Max workers:", value=params.get_max_workers())
+                        opt_max_workers = gr.Textbox(label="Max workers:", value=str(params.get_max_workers()))
                         opt_vcodec = gr.Dropdown(label="Default video codec:", value=params.get_vcodec(),
                                                  choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
                     with gr.Column():
@@ -247,7 +258,12 @@ class GradioManager:
                         opt_output = gr.Textbox(label="")
 
                 opt_btn_save.click(apply_option, inputs=[opt_max_workers, opt_vcodec], outputs=opt_output)
-                opt_btn_reload_ui.click(ui_reload, outputs=[opt_max_workers, opt_vcodec, s_compr_vcodec])
+                opt_btn_reload_ui.click(ui_reload, outputs=[
+                    opt_max_workers,
+                    opt_vcodec,
+                    s_compr_vcodec,
+                    d_compr_vcodec
+                ])
 
     def launch(self):
         self.interface.launch(inbrowser=True)
