@@ -201,13 +201,20 @@ class GradioManager:
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
-                                m_extr_v_path = gr.Textbox(label="Video Directory Path", scale=8)
-                                m_extr_btn_get_v_path = gr.Button("📂", scale=1)
+                                m_extr_v_path = gr.Dataframe(
+                                    headers=["Video Path"],
+                                    datatype="str",
+                                    col_count=(1, "fixed"),
+                                    interactive=True,
+                                    row_count=1,
+                                    type="array"
+                                )
+                                m_extr_btn_get_v_path = gr.Button("📂")
                             m_extr_run = gr.Button("Extract Audio")
                         with gr.Column():
                             m_extr_output = gr.Textbox(label="Result")
 
-                    m_extr_btn_get_v_path.click(get_dir, inputs=m_extr_v_path, outputs=m_extr_v_path)
+                    m_extr_btn_get_v_path.click(get_files, inputs=m_extr_v_path, outputs=m_extr_v_path)
                     m_extr_run.click(batch_extract_audio, inputs=m_extr_v_path, outputs=m_extr_output)
 
                 with gr.Tab("Modify audio"):
