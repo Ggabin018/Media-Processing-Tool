@@ -1,7 +1,4 @@
 from tkinter import filedialog, Tk
-from typing import IO
-
-from pygments.lexer import default
 
 
 def get_file(default_path: str) -> str:
@@ -16,16 +13,22 @@ def get_file(default_path: str) -> str:
         return default_path
     return file_path.name
 
+def get_video_files(default_path: list[list[str]]) -> list[list[str]]:
+    return get_files(default_path, [
+        ("Video files", "*.mp4 *.avi *.mkv *.mov"),
+        ("All files", "*.*")
+    ])
 
-def get_files(default_path: list[list[str]]) -> list[list[str]]:
+def get_audio_files(default_path: list[list[str]]) -> list[list[str]]:
+    return get_files(default_path, [
+        ("Audio files", "*.mp3 *.wav *.ogg *.flac"),
+        ("All files", "*.*")
+    ])
+
+def get_files(default_path: list[list[str]], filetypes) -> list[list[str]]:
     root = Tk()
     root.withdraw()
     root.wm_attributes('-topmost', 1)
-
-    filetypes = [
-        ("Video files", "*.mp4 *.avi *.mkv *.mov"),
-        ("All files", "*.*")
-    ]
 
     file_paths = filedialog.askopenfiles(filetypes=filetypes)
 
