@@ -1,36 +1,39 @@
 import random
 from concurrent.futures import ThreadPoolExecutor
 
-from file_manipulation.audio_manip import audio_combine, audio_replace
-from file_manipulation.video_manip import video_compress
-from file_manipulation.media_converter import convert_media
+from back_end.audio_manip import audio_combine, audio_replace
+from back_end.video_manip import video_compress
+from back_end.media_converter import convert_media
 
+from toolbox.Parameters import Params
 
-def files_compress_videos(files: list[str], bitrate: int = 8000) -> str:
+params = Params()
+
+def files_compress_videos(files: list[str], bitrate, min_res, vcodec) -> str:
     """
     compress all videos in a subdir output
     """
     res = []
 
     def process_file(file):
-        res.append(video_compress(file, target_bitrate=bitrate))
+        res.append(video_compress(file, target_bitrate=bitrate, min_resolution=min_res, vcodec=vcodec))
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, files)
 
     return '\n'.join(res)
 
 
-def files_audio_extract(files: list[str]) -> str:
+def files_convert(files: list[str], ext: str) -> str:
     """
-    extrait les audios des vidéos
+    Convert media files (video or audio) to another format
     """
     res = []
 
     def process_file(file):
-        res.append(convert_media(file, "mp3"))
+        res.append(convert_media(file, ext))
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, files)
 
     return '\n'.join(res)
@@ -46,7 +49,7 @@ def files_audio_combine(videos: list[str], audios: list[str]) -> str:
         audio_to_combine = random.choice(audios)
         res.append(audio_combine(file, audio_to_combine))
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, videos)
 
     return '\n'.join(res)
@@ -62,7 +65,7 @@ def files_audio_replace(videos: list[str], audios: list[str]) -> str:
         audio_to_combine = random.choice(audios)
         res.append(audio_replace(file, audio_to_combine))
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, videos)
 
     return '\n'.join(res)
@@ -74,7 +77,7 @@ def files_convert_video_to_video(videos: list[str], ext: str) -> str:
     def process_file(file):
         res.append(convert_media(file, ext))
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, videos)
 
     return '\n'.join(res)

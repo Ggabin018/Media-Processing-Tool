@@ -4,10 +4,10 @@ import sys
 
 import gradio as gr
 
-from api_gradio.directory import *
-from api_gradio.single_file import *
-from api_gradio.multiple_files import *
-from script_js import js
+from middle_end.directory import *
+from middle_end.single_file import *
+from middle_end.multiple_files import *
+from front_end.script_js import js
 from toolbox.Parameters import Params
 from toolbox.tkinter_getters import *
 
@@ -35,10 +35,11 @@ def apply_option(max_workers: int, vcodec) -> str:
 
 def ui_reload():
     return (
-        params.get_max_workers(),  # opt_max_workers
-        params.get_vcodec(),  # opt_vcodec
-        params.get_vcodec(),  # s_compr_vcodec
-        params.get_vcodec()  # d_compr_vcodec
+        params.get_max_workers(),   # opt_max_workers
+        params.get_vcodec(),        # opt_vcodec
+        params.get_vcodec(),        # s_compr_vcodec
+        params.get_vcodec(),        # d_compr_vcodec
+        params.get_vcodec()         # m_compr_vcodec
     )
 
 
@@ -165,6 +166,7 @@ class GradioManager:
                                 d_modif_a_path = gr.Textbox(label="Audio Directory Path", scale=8)
                                 d_modif_btn_get_a_path = gr.Button("📂", scale=1)
                             d_modif_mode_opt = gr.Dropdown(label="Select a mode", choices=["replace", "combine"])
+                            d_modif_randomize = gr.Checkbox(label="Random order", value=True)
                             d_modif_run = gr.Button("Batch Modify Audio")
                         with gr.Column():
                             d_modif_output = gr.Textbox(label="Result", interactive=False)
@@ -196,61 +198,120 @@ class GradioManager:
                                       d_compr_output)
 
             with gr.Tab("Multiples Videos"):
-                gr.Markdown("TODO")
-                with gr.Tab("Extract Audios from Videos"):
+                with gr.Tab("Convert Videos"):
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
-                                m_extr_v_path = gr.Dataframe(
-                                    headers=["Video Path"],
+                                m_cvv_v_path = gr.Dataframe(
+                                    headers=["Video Paths"],
                                     datatype="str",
                                     col_count=(1, "fixed"),
                                     interactive=True,
                                     row_count=1,
-                                    type="array"
+                                    type="array",
+                                    wrap=True,
+                                    scale=8
                                 )
-                                m_extr_btn_get_v_path = gr.Button("📂")
-                            m_extr_run = gr.Button("Extract Audio")
+                                m_cvv_btn_get_v_path = gr.Button("📂")
+                                m_cvv_chose_ext = gr.Dropdown(label="Select an extension",
+                                                              choices=["mp4", "mov", "avi", "webm", "mkv"])
+                            m_cvv_run = gr.Button("Convert")
                         with gr.Column():
-                            m_extr_output = gr.Textbox(label="Result")
+                            m_cvv_output = gr.Textbox(label="Result")
 
-                    m_extr_btn_get_v_path.click(get_files, inputs=m_extr_v_path, outputs=m_extr_v_path)
-                    m_extr_run.click(batch_extract_audio, inputs=m_extr_v_path, outputs=m_extr_output)
+                    m_cvv_btn_get_v_path.click(get_video_files, inputs=m_cvv_v_path, outputs=m_cvv_v_path)
+                    m_cvv_run.click(batch_convert, inputs=[m_cvv_v_path, m_cvv_chose_ext], outputs=m_cvv_output)
+
+                with gr.Tab("Convert Audios"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                m_cva_a_path = gr.Dataframe(
+                                    headers=["Audio Paths"],
+                                    datatype="str",
+                                    col_count=(1, "fixed"),
+                                    interactive=True,
+                                    row_count=1,
+                                    type="array",
+                                    wrap=True,
+                                    scale=8
+                                )
+                                m_cva_btn_get_a_path = gr.Button("📂")
+                                m_cva_chose_ext = gr.Dropdown(label="Select an extension",
+                                                               choices=["mp3","wav","ogg", "flac"])
+                            m_cva_run = gr.Button("Convert")
+                        with gr.Column():
+                            m_cva_output = gr.Textbox(label="Result")
+
+                m_cva_btn_get_a_path.click(get_audio_files, inputs=m_cva_a_path, outputs=m_cva_a_path)
+                m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output)
 
                 with gr.Tab("Modify audio"):
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
-                                m_modif_v_path = gr.Textbox(label="Video Directory Path", scale=8)
+                                m_modif_v_path = gr.Dataframe(
+                                    headers=["Video Paths"],
+                                    datatype="str",
+                                    col_count=(1, "fixed"),
+                                    interactive=True,
+                                    row_count=1,
+                                    type="array",
+                                    wrap=True,
+                                    scale=8
+                                )
                                 m_modif_btn_get_v_path = gr.Button("📂", scale=1)
                             with gr.Row(equal_height=True):
-                                m_modif_a_path = gr.Textbox(label="Audio Directory Path", scale=8)
+                                m_modif_a_path = gr.Dataframe(
+                                    headers=["Audio Paths"],
+                                    datatype="str",
+                                    col_count=(1, "fixed"),
+                                    interactive=True,
+                                    row_count=1,
+                                    type="array",
+                                    wrap=True,
+                                    scale=8
+                                )
                                 m_modif_btn_get_a_path = gr.Button("📂", scale=1)
                             m_modif_opt_mode = gr.Dropdown(label="Select a mode", choices=["replace", "combine"])
+                            m_modif_randomize = gr.Checkbox(label="Random order", value=True)
                             m_modif_run = gr.Button("Batch Modify Audio")
                         with gr.Column():
                             m_modif_output = gr.Textbox(label="Result")
 
-                    m_modif_btn_get_v_path.click(get_dir, inputs=m_modif_v_path, outputs=m_modif_v_path)
-                    m_modif_btn_get_a_path.click(get_dir, inputs=m_modif_a_path, outputs=m_modif_a_path)
-                    m_modif_run.click(batch_modify_audio,
-                                      inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode],
-                                      outputs=m_modif_output)
+                m_modif_btn_get_v_path.click(get_video_files, inputs=m_modif_v_path, outputs=m_modif_v_path)
+                m_modif_btn_get_a_path.click(get_audio_files, inputs=m_modif_a_path, outputs=m_modif_a_path)
+                m_modif_run.click(batch_modify_audio,
+                                  inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode],
+                                  outputs=m_modif_output)
 
                 with gr.Tab("Compress to"):
                     with gr.Row():
                         with gr.Column():
                             with gr.Row(equal_height=True):
-                                m_compr_v_path = gr.Textbox(label="Video Directory Path", scale=8)
+                                m_compr_v_path = gr.Dataframe(
+                                    headers=["Video Paths"],
+                                    datatype="str",
+                                    col_count=(1, "fixed"),
+                                    interactive=True,
+                                    row_count=1,
+                                    type="array",
+                                    wrap=True,
+                                    scale=8
+                                )
                                 m_compr_get_v_path = gr.Button("📂", scale=1)
                             m_compr_bitrate = gr.Textbox(label="Bitrate wanted:", value="8000")
+                            m_compr_min_res = gr.Textbox(label="Minimum resolution", value="1080")
+                            m_compr_vcodec = gr.Dropdown(label="Video codec", value=params.get_vcodec(),
+                                                         choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
+                            
                             m_compr_run = gr.Button("Batch compress video")
                         with gr.Column():
                             m_compr_output = gr.Textbox(label="Result")
 
-                    m_compr_get_v_path.click(get_dir, m_compr_v_path, m_compr_v_path)
-                    m_compr_run.click(batch_compress, [m_compr_v_path, m_compr_bitrate],
-                                      m_compr_output)
+                m_compr_get_v_path.click(get_video_files, m_compr_v_path, m_compr_v_path)
+                m_compr_run.click(batch_compress, [m_compr_v_path, m_compr_bitrate, m_compr_min_res, m_compr_vcodec],
+                                  m_compr_output)
 
             with gr.Tab("Options"):
                 with gr.Row():
@@ -269,7 +330,8 @@ class GradioManager:
                     opt_max_workers,
                     opt_vcodec,
                     s_compr_vcodec,
-                    d_compr_vcodec
+                    d_compr_vcodec,
+                    m_compr_vcodec
                 ])
 
     def launch(self):

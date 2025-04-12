@@ -1,4 +1,4 @@
-from GradioManager import GradioManager
+from front_end.GradioManager import GradioManager
 
 import logging
 

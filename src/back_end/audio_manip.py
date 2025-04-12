@@ -7,7 +7,7 @@ import json
 import subprocess
 
 from math import ceil
-from file_manipulation.video_manip import get_video_duration
+from back_end.video_manip import get_video_duration
 
 
 def is_audio(path: str):

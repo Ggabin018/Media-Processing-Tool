@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from file_manipulation.video_manip import get_video_duration, get_resolution, get_video_bitrate, get_original_codecs, \
+from back_end.video_manip import get_video_duration, get_resolution, get_video_bitrate, get_original_codecs, \
     is_video
 
 

@@ -3,9 +3,9 @@ import shutil
 import tempfile
 
 from toolbox.utils import regularize_path
-from file_manipulation.video_manip import video_cut, video_compress, is_video
-from file_manipulation.audio_manip import audio_replace, audio_combine
-from file_manipulation.media_converter import convert_media
+from back_end.video_manip import video_cut, video_compress, is_video
+from back_end.audio_manip import audio_replace, audio_combine
+from back_end.media_converter import convert_media
 
 temp_file = None
 

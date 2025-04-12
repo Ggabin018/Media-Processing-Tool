@@ -2,9 +2,9 @@ import os
 import random
 from concurrent.futures import ThreadPoolExecutor
 
-from file_manipulation.audio_manip import audio_combine, audio_replace
-from file_manipulation.video_manip import video_compress, is_video
-from file_manipulation.media_converter import convert_media
+from back_end.audio_manip import audio_combine, audio_replace
+from back_end.video_manip import video_compress, is_video
+from back_end.media_converter import convert_media
 from toolbox.Parameters import Params
 
 params = Params()

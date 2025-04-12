@@ -1,4 +1,4 @@
-from file_manipulation.dir_manip import (
+from back_end.dir_manip import (
     dir_convert_media,
     dir_audio_replace,
     dir_audio_combine,
