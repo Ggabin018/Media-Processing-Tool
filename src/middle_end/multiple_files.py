@@ -20,7 +20,7 @@ def batch_convert_video_to_video(videos: list[str], ext: str) -> str:
         return f"Error: {str(e)}"
 
 
-def batch_modify_audio(videos: list[str], audios: list[str], opt: str = "replace") -> str:
+def batch_modify_audio(videos: list[str], audios: list[str], opt: str = "replace", randomize: bool = True) -> str:
     try:
         videos = get_correct_files(videos)
         if not videos:
@@ -29,9 +29,9 @@ def batch_modify_audio(videos: list[str], audios: list[str], opt: str = "replace
         if not audios:
             return "No provided audios"
         if opt == "replace":
-            paths = files_audio_replace(videos, audios)
+            paths = files_audio_replace(videos, audios, randomize)
         else:
-            paths = files_audio_combine(videos, audios)
+            paths = files_audio_combine(videos, audios, randomize)
         return paths
     except Exception as e:
         return f"Error: {str(e)}"

@@ -174,7 +174,7 @@ class GradioManager:
                     d_modif_btn_get_v_path.click(get_dir, inputs=d_modif_v_path, outputs=d_modif_v_path)
                     d_modif_btn_get_a_path.click(get_dir, inputs=d_modif_a_path, outputs=d_modif_a_path)
                     d_modif_run.click(directory_audio_modify,
-                                      inputs=[d_modif_v_path, d_modif_a_path, d_modif_mode_opt],
+                                      inputs=[d_modif_v_path, d_modif_a_path, d_modif_mode_opt, d_modif_randomize],
                                       outputs=d_modif_output)
 
                 with gr.Tab("Compress Videos"):
@@ -282,7 +282,7 @@ class GradioManager:
                 m_modif_btn_get_v_path.click(get_video_files, inputs=m_modif_v_path, outputs=m_modif_v_path)
                 m_modif_btn_get_a_path.click(get_audio_files, inputs=m_modif_a_path, outputs=m_modif_a_path)
                 m_modif_run.click(batch_modify_audio,
-                                  inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode],
+                                  inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode, m_modif_randomize],
                                   outputs=m_modif_output)
 
                 with gr.Tab("Compress to"):

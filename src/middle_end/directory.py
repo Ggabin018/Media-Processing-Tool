@@ -15,11 +15,11 @@ def directory_media2media(video_dir_path: str, ext: str) -> str:
         return f"Error: {str(e)}"
 
 
-def directory_audio_modify(video_dir_path: str, audio_dir_path: str, opt: str = "replace") -> str:
+def directory_audio_modify(video_dir_path: str, audio_dir_path: str, opt: str = "replace", randomize: bool = True) -> str:
     try:
         if opt == "replace":
-            return dir_audio_replace(video_dir_path, audio_dir_path)
-        return dir_audio_combine(video_dir_path, audio_dir_path)
+            return dir_audio_replace(video_dir_path, audio_dir_path, randomize)
+        return dir_audio_combine(video_dir_path, audio_dir_path, randomize)
     except Exception as e:
         return f"Error: {str(e)}"
 

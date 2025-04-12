@@ -39,14 +39,21 @@ def files_convert(files: list[str], ext: str) -> str:
     return '\n'.join(res)
 
 
-def files_audio_combine(videos: list[str], audios: list[str]) -> str:
+def files_audio_combine(videos: list[str], audios: list[str], randomize: bool) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     """
     res = []
+    n_audios = len(audios)
+    i = 0
 
     def process_file(file):
-        audio_to_combine = random.choice(audios)
+        nonlocal i
+        if randomize:
+            audio_to_combine = random.choice(audios)
+        else:
+            audio_to_combine = audios[i]
+            i = (i + 1) % len(audios)
         res.append(audio_combine(file, audio_to_combine))
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
@@ -55,14 +62,21 @@ def files_audio_combine(videos: list[str], audios: list[str]) -> str:
     return '\n'.join(res)
 
 
-def files_audio_replace(videos: list[str], audios: list[str]) -> str:
+def files_audio_replace(videos: list[str], audios: list[str], randomize: bool) -> str:
     """
     replace audios of files with compression
     """
     res = []
+    n_audios = len(audios)
+    i = 0
 
     def process_file(file):
-        audio_to_combine = random.choice(audios)
+        nonlocal i
+        if randomize:
+            audio_to_combine = random.choice(audios)
+        else:
+            audio_to_combine = audios[i]
+            i = (i + 1) % n_audios
         res.append(audio_replace(file, audio_to_combine))
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:

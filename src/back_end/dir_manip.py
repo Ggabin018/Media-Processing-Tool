@@ -2,12 +2,13 @@ import os
 import random
 from concurrent.futures import ThreadPoolExecutor
 
-from back_end.audio_manip import audio_combine, audio_replace
+from back_end.audio_manip import audio_combine, audio_replace, is_audio
 from back_end.video_manip import video_compress, is_video
 from back_end.media_converter import convert_media
 from toolbox.Parameters import Params
 
 params = Params()
+
 
 def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec: str = "hevc_nvenc") -> str:
     """
@@ -73,21 +74,28 @@ def dir_convert_media(videos_dir: str, ext: str) -> str:
     return '\n'.join(res)
 
 
-def dir_audio_combine(videos_dir: str, audio_dir: str) -> str:
+def dir_audio_combine(videos_dir: str, audio_dir: str, randomize: bool) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     :param videos_dir: dossier contenant les vidéos
     :param audio_dir: dossier contenant les audios à superposer
     """
     res = []
-    audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if file.lower().endswith(".mp3")]
+    audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if is_audio(file)]
+    n_audios = len(audio_list)
+    i = 0
 
     def process_file(file):
+        nonlocal i
+        if randomize:
+            audio_to_combine = random.choice(audio_list)
+        else:
+            audio_to_combine = audio_list[i]
+            i = (i + 1) % n_audios
         path_mp4 = os.path.join(videos_dir, file)
-        audio_to_combine = random.choice(audio_list)
         res.append(audio_combine(path_mp4, audio_to_combine))
 
-    files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
+    files = [file for file in os.listdir(videos_dir) if is_video(file)]
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, files)
@@ -95,7 +103,7 @@ def dir_audio_combine(videos_dir: str, audio_dir: str) -> str:
     return '\n'.join(res)
 
 
-def dir_audio_replace(videos_dir: str, audio_dir: str) -> str:
+def dir_audio_replace(videos_dir: str, audio_dir: str, randomize: bool) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     replace audio with compression
@@ -103,14 +111,22 @@ def dir_audio_replace(videos_dir: str, audio_dir: str) -> str:
     :param audio_dir: dossier contenant les audios à superposer
     """
     res = []
-    audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if file.lower().endswith(".mp3")]
+    i = 0
+    audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if is_audio(file)]
+    n_audios = len(audio_list)
 
     def process_file(file):
+        nonlocal i
+        if randomize:
+            audio_to_combine = random.choice(audio_list)
+        else:
+            audio_to_combine = audio_list[i]
+            i = (i + 1) % n_audios
+
         path_mp4 = os.path.join(videos_dir, file)
-        audio_to_combine = random.choice(audio_list)
         res.append(audio_replace(path_mp4, audio_to_combine))
 
-    files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
+    files = [file for file in os.listdir(videos_dir) if is_video(file)]
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, files)
