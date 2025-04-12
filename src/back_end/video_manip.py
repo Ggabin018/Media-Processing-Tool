@@ -126,18 +126,18 @@ def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -
     if not is_video(input_video):
         return f"Error: Not a video file"
 
-    if start:
+    if start is not None:
         tmp = to_seconds(start)
         if not tmp:
             return f"Syntax error: Start Time: {start}, expected HH:MM:SS or seconds"
         start = tmp
-    if end:
+    if end is not None:
         tmp = to_seconds(end)
         if not tmp:
             return f"Syntax error: End Time: {end}, expected HH:MM:SS or seconds"
         end = tmp
 
-    if start and end:
+    if start is not None and end is not None:
         if start >= end:
             return f"Error: Start Time ({start}) >= End Time ({end})"
 
@@ -146,11 +146,11 @@ def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -
     try:
         if fast_flag:
             # Fast seeking: quick but less precise trimming
-            if start:
+            if start is not None:
                 stream = ffmpeg.input(input_video, ss=start)
             else:
                 stream = ffmpeg.input(input_video)
-            if end:
+            if end is not None:
                 duration = (end - start) if start else end
                 stream = ffmpeg.output(stream, output_video, t=duration, c="copy")
             else:
@@ -159,13 +159,13 @@ def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -
             # Frame-accurate trimming: slower but precise
             stream = ffmpeg.input(input_video, hwaccel='cuda')
 
-            if start and end:
+            if start is not None and end is not None:
                 vid = stream.trim(start=start, end=end).setpts('PTS-STARTPTS')
                 aud = stream.filter_('atrim', start=start, end=end).filter_('asetpts', 'PTS-STARTPTS')
-            elif start:
+            elif start is not None:
                 vid = stream.trim(start=start).setpts('PTS-STARTPTS')
                 aud = stream.filter_('atrim', start=start).filter_('asetpts', 'PTS-STARTPTS')
-            elif end:
+            elif end is not None:
                 vid = stream.trim(end=end).setpts('PTS-STARTPTS')
                 aud = stream.filter_('atrim', end=end).filter_('asetpts', 'PTS-STARTPTS')
             else:

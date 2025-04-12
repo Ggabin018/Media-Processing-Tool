@@ -8,6 +8,7 @@ from middle_end.directory import *
 from middle_end.single_file import *
 from middle_end.multiple_files import *
 from front_end.script_js import js
+from toolbox.DraggableListbox import WindowDragListBox
 from toolbox.Parameters import Params
 from toolbox.tkinter_getters import *
 
@@ -31,17 +32,26 @@ def apply_option(max_workers: int, vcodec) -> str:
     return f"Save {datetime.datetime.now()}"
 
 
-# region Gradio Manager
-
 def ui_reload():
     return (
-        params.get_max_workers(),   # opt_max_workers
-        params.get_vcodec(),        # opt_vcodec
-        params.get_vcodec(),        # s_compr_vcodec
-        params.get_vcodec(),        # d_compr_vcodec
-        params.get_vcodec()         # m_compr_vcodec
+        params.get_max_workers(),  # opt_max_workers
+        params.get_vcodec(),  # opt_vcodec
+        params.get_vcodec(),  # s_compr_vcodec
+        params.get_vcodec(),  # d_compr_vcodec
+        params.get_vcodec()  # m_compr_vcodec
     )
 
+def reorder_list(dataframe):
+    try:
+        files = [f[0] for f in dataframe]
+        wdlb = WindowDragListBox(files)
+        res = wdlb.change_list()
+        wdlb.root.destroy()
+        return [[f] for f in res]
+    except Exception:
+        return dataframe
+
+# region Gradio Manager
 
 class GradioManager:
     def __init__(self):
@@ -238,7 +248,7 @@ class GradioManager:
                                 )
                                 m_cva_btn_get_a_path = gr.Button("📂")
                                 m_cva_chose_ext = gr.Dropdown(label="Select an extension",
-                                                               choices=["mp3","wav","ogg", "flac"])
+                                                              choices=["mp3", "wav", "ogg", "flac"])
                             m_cva_run = gr.Button("Convert")
                         with gr.Column():
                             m_cva_output = gr.Textbox(label="Result")
@@ -262,6 +272,8 @@ class GradioManager:
                                 )
                                 m_modif_btn_get_v_path = gr.Button("📂", scale=1)
                             with gr.Row(equal_height=True):
+                                m_modif_reorder_videos = gr.Button("Reorder")
+                            with gr.Row(equal_height=True):
                                 m_modif_a_path = gr.Dataframe(
                                     headers=["Audio Paths"],
                                     datatype="str",
@@ -273,7 +285,11 @@ class GradioManager:
                                     scale=8
                                 )
                                 m_modif_btn_get_a_path = gr.Button("📂", scale=1)
+                            with gr.Row(equal_height=True):
+                                m_modif_reorder_audios = gr.Button("Reorder")
                             m_modif_opt_mode = gr.Dropdown(label="Select a mode", choices=["replace", "combine"])
+                            m_modif_reorder_videos.click(reorder_list, m_modif_v_path, m_modif_v_path)
+                            m_modif_reorder_audios.click(reorder_list, m_modif_a_path, m_modif_a_path)
                             m_modif_randomize = gr.Checkbox(label="Random order", value=True)
                             m_modif_run = gr.Button("Batch Modify Audio")
                         with gr.Column():
@@ -304,7 +320,7 @@ class GradioManager:
                             m_compr_min_res = gr.Textbox(label="Minimum resolution", value="1080")
                             m_compr_vcodec = gr.Dropdown(label="Video codec", value=params.get_vcodec(),
                                                          choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
-                            
+
                             m_compr_run = gr.Button("Batch compress video")
                         with gr.Column():
                             m_compr_output = gr.Textbox(label="Result")

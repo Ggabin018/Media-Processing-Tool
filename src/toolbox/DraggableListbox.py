@@ -31,11 +31,20 @@ class WindowDragListBox:
         self.root = tk.Tk()
         self.root.title("Liste Réorganisable avec Tkinter")
 
-        self.listbox = DraggableListbox(self.root, height=6, selectmode=tk.SINGLE)
-        self.listbox.pack(padx=20, pady=20)
+        scroll = tk.Scrollbar(self.root, orient="horizontal")
+        self.listbox = DraggableListbox(
+            self.root, height=6, width=100,
+            selectmode=tk.SINGLE,
+            xscrollcommand=scroll.set
+        )
+        scroll.config(command=self.listbox.xview)
+
+        self.listbox.pack(padx=20, pady=(20, 0))
+        scroll.pack(fill="x", padx=20, pady=(0, 10))
 
         for item in l:
             self.listbox.insert(tk.END, item)
+            self.listbox.xview_moveto(1.0)
 
         btn = tk.Button(self.root, text="OK", command=self.__stop)
         btn.pack(pady=10)
@@ -52,3 +61,5 @@ if __name__ == "__main__":
     l = ["Ligne 1", "Ligne 2", "Ligne 3", "Ligne 4", "Ligne 5"]
     wdlb = WindowDragListBox(l)
     print(wdlb.change_list())
+    wdlb.root.destroy()
+    input()
