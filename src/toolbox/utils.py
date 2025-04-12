@@ -33,6 +33,7 @@ def regularize_path(path: str) -> str:
 
 def get_correct_files(files: list[str]) -> list[str]:
     res = []
+    files = [f[0] for f in files]
     for f in files:
         if f == "":
             continue
