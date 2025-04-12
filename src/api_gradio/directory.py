@@ -31,8 +31,8 @@ def directory_convert(dir_path: str, ext: str) -> str:
         return f"Error: {str(e)}"
 
 
-def directory_compress(dir_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec="hevc_nvenc") -> str:
+def directory_compress(dir_path: str, bitrate: int = 8000, min_res: str = "1080", vcodec="hevc_nvenc") -> str:
     try:
-        return dir_compress_videos(dir_path, bitrate, min_res, vcodec)
+        return dir_compress_videos(dir_path, bitrate, int(min_res), vcodec)
     except Exception as e:
         return f"Error: {str(e)}"
