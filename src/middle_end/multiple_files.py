@@ -5,6 +5,7 @@ from back_end.files_manip import (
     files_convert,
     files_convert_video_to_video
 )
+from back_end.video_manip import videos_concat
 
 from toolbox.utils import get_correct_files
 
@@ -53,5 +54,14 @@ def batch_convert(medias: list[str], ext: str) -> str:
         if not medias:
             return "No provided medias"
         return files_convert(medias, ext)
+    except Exception as e:
+        return f"Error: {str(e)}"
+
+def batch_concat(videos: list[str]) -> str:
+    try:
+        videos = get_correct_files(videos)
+        if not videos:
+            return "No provided videos"
+        return videos_concat(videos)
     except Exception as e:
         return f"Error: {str(e)}"

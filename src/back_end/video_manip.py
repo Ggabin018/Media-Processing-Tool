@@ -1,13 +1,12 @@
-import logging
+import os
 import os
 import sys
+import tempfile
 
 import ffmpeg
 
 from toolbox.ProgressBar import progress_bar
 from toolbox.utils import to_seconds
-
-logger = logging.getLogger("video_modif")
 
 
 def is_video(path: str) -> bool:
@@ -113,65 +112,44 @@ def get_video_bitrate(video_path: str) -> float | str:
         return f"Error extracting bitrate: {e}"
 
 
-def video_cut(input_video: str, start=None, end=None, fast_flag: bool = False) -> str:
+def video_cut(input_video: str, start=None, end=None) -> str:
     """
-    Cut a video from start to end using ffmpeg-python
-
+    Cut a video from start to end
     :param input_video: path to the input video file
     :param start: start time in format "HH:MM:SS" or seconds
     :param end: end time in format "HH:MM:SS" or seconds
-    :param fast_flag: if True, use faster seeking method (may miss some frames)
     :return: path to the output video file
     """
     if not is_video(input_video):
         return f"Error: Not a video file"
 
-    if start is not None:
+    if start:
         tmp = to_seconds(start)
-        if not tmp:
+        if tmp is None:
             return f"Syntax error: Start Time: {start}, expected HH:MM:SS or seconds"
         start = tmp
-    if end is not None:
+    if end:
         tmp = to_seconds(end)
-        if not tmp:
+        if tmp is None:
             return f"Syntax error: End Time: {end}, expected HH:MM:SS or seconds"
         end = tmp
 
-    if start is not None and end is not None:
+    if start and end:
         if start >= end:
             return f"Error: Start Time ({start}) >= End Time ({end})"
 
     output_video = os.path.splitext(input_video)[0] + "__cut.mp4"
 
     try:
-        if fast_flag:
-            # Fast seeking: quick but less precise trimming
-            if start is not None:
-                stream = ffmpeg.input(input_video, ss=start)
-            else:
-                stream = ffmpeg.input(input_video)
-            if end is not None:
-                duration = (end - start) if start else end
-                stream = ffmpeg.output(stream, output_video, t=duration, c="copy")
-            else:
-                stream = ffmpeg.output(stream, output_video, c="copy")
+        if start:
+            stream = ffmpeg.input(input_video, ss=start)
         else:
-            # Frame-accurate trimming: slower but precise
-            stream = ffmpeg.input(input_video, hwaccel='cuda')
-
-            if start is not None and end is not None:
-                vid = stream.trim(start=start, end=end).setpts('PTS-STARTPTS')
-                aud = stream.filter_('atrim', start=start, end=end).filter_('asetpts', 'PTS-STARTPTS')
-            elif start is not None:
-                vid = stream.trim(start=start).setpts('PTS-STARTPTS')
-                aud = stream.filter_('atrim', start=start).filter_('asetpts', 'PTS-STARTPTS')
-            elif end is not None:
-                vid = stream.trim(end=end).setpts('PTS-STARTPTS')
-                aud = stream.filter_('atrim', end=end).filter_('asetpts', 'PTS-STARTPTS')
-            else:
-                return "No start and end time defined"
-
-            stream = ffmpeg.output(vid, aud, output_video)
+            stream = ffmpeg.input(input_video)
+        if end:
+            duration = (end - start) if start else end
+            stream = ffmpeg.output(stream, output_video, t=duration, c="copy")
+        else:
+            stream = ffmpeg.output(stream, output_video, c="copy")
 
         stream = ffmpeg.overwrite_output(stream)
 
@@ -299,3 +277,86 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
         return f"ffmpeg error: {e.stderr.decode() if hasattr(e.stderr, 'decode') else e.stderr}"
     except Exception as e:
         return f"Error: {str(e)}"
+
+
+def videos_concat(videos: list[str]) -> str:
+    """
+    Concatenate multiple video files
+
+    :param videos: list of video paths
+    :return: path to the output concatenated video file
+    """
+    if not videos or len(videos) < 2:
+        return "Error: At least two videos are required for concatenation"
+
+    # Check if all files are videos
+    for video in videos:
+        if not is_video(video):
+            return f"Error: {video} is not a video file"
+
+    # Create output filename based on first video
+    base_name = os.path.splitext(videos[0])[0]
+    output_video = f"{base_name}__concat.mp4"
+
+    try:
+        # Create temporary directory for intermediate files
+        temp_dir = tempfile.mkdtemp()
+
+        # First pass: normalize all videos to ensure consistent timestamps
+        normalized_videos = []
+
+        for i, video in enumerate(videos):
+            normalized_path = os.path.join(temp_dir, f"norm_{i}.ts")
+            normalized_videos.append(normalized_path)
+
+            # Convert to TS format which helps with timestamp issues
+            stream = ffmpeg.input(video)
+            output = ffmpeg.output(
+                stream,
+                normalized_path,
+                f='mpegts',  # Use MPEG-TS format which handles timestamps better
+                acodec='aac',  # Consistent audio codec
+                vcodec='libx264'  # Consistent video codec
+            )
+            output = ffmpeg.overwrite_output(output)
+            ffmpeg.run(output, quiet=False)  # Show output for debugging
+
+        # Second pass: concat using TS inputs (which handle timestamps better)
+        inputs = []
+        for norm_video in normalized_videos:
+            inputs.append(ffmpeg.input(norm_video))
+
+        joined = ffmpeg.concat(*inputs, v=1, a=1)
+        output = ffmpeg.output(joined, output_video, f='mp4')
+        output = ffmpeg.overwrite_output(output)
+
+        ffmpeg.run(output, quiet=False)  # Show output for debugging
+
+        # Clean up temporary files
+        for file in normalized_videos:
+            if os.path.exists(file):
+                os.unlink(file)
+        os.rmdir(temp_dir)
+
+        return output_video
+
+    except ffmpeg.Error as e:
+        error_message = e.stderr.decode() if hasattr(e.stderr, 'decode') else str(e.stderr)
+        return f"ffmpeg error: {error_message}"
+    except Exception as e:
+        return f"Error during video concatenation: {str(e)}"
+
+
+def multiple_cuts_plus_concatenate(video_path: str, times: list[list[str, str]]) -> str:
+    video_paths = []
+    padding = len(str(len(times)))
+    for i, (start, end) in enumerate(times):
+        path = video_cut(video_path, start, end)
+        if os.path.exists(path):
+            new_name = os.path.splitext(path)[0] + f"__{i:0{padding}}.mp4"
+            os.rename(path, new_name)
+            video_paths.append(new_name)
+        else:
+            # error during cut
+            return f"Error with parameters:\nstart={start}\nend={end}\n" + path
+    return videos_concat(video_paths)

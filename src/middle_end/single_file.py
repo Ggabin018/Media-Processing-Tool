@@ -3,7 +3,7 @@ import shutil
 import tempfile
 
 from toolbox.utils import regularize_path
-from back_end.video_manip import video_cut, video_compress, is_video
+from back_end.video_manip import video_cut, video_compress, is_video, multiple_cuts_plus_concatenate
 from back_end.audio_manip import audio_replace, audio_combine
 from back_end.media_converter import convert_media
 
@@ -25,12 +25,12 @@ def make_temp_copy(src_path: str) -> str | None:
         return None
 
 
-def cut_video(video_path: str, start: str | None, end: str | None, fast_flag: bool = False) -> tuple[str, str | None]:
+def cut_video(video_path: str, start: str | None, end: str | None) -> tuple[str, str | None]:
     video_path = regularize_path(video_path)
     if not os.path.exists(video_path):
         return f"{video_path} does not exit", None
 
-    path = video_cut(video_path, start=start, end=end, fast_flag=fast_flag)
+    path = video_cut(video_path, start=start, end=end)
     return path, make_temp_copy(path)
 
 
@@ -61,3 +61,12 @@ def compress_vid(video_path: str, bitrate: int = 8000, min_res: int = 1080, vcod
         return path, make_temp_copy(path)
     except Exception as e:
         return f"Error: {str(e)}", None
+
+
+def cut_and_concate(video_path: str, times: list[list[str, str]]) -> tuple[str, str | None]:
+    video_path = regularize_path(video_path)
+    if not os.path.exists(video_path):
+        return f"{video_path} does not exit", None
+
+    path = multiple_cuts_plus_concatenate(video_path, times)
+    return path, make_temp_copy(path)

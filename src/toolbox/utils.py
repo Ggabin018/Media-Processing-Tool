@@ -2,6 +2,8 @@ import os
 
 
 def to_seconds(var) -> int | None:
+    if var is None:
+        return 0
     try:
         return int(var)
     except ValueError:

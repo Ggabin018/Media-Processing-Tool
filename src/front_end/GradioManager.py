@@ -41,6 +41,7 @@ def ui_reload():
         params.get_vcodec()  # m_compr_vcodec
     )
 
+
 def reorder_list(dataframe):
     try:
         files = [f[0] for f in dataframe]
@@ -50,6 +51,7 @@ def reorder_list(dataframe):
         return [[f] for f in res]
     except Exception:
         return dataframe
+
 
 # region Gradio Manager
 
@@ -67,15 +69,6 @@ class GradioManager:
                                 s_cut_get_v_path = gr.Button("📂", scale=1)
                             s_cut_start_time = gr.Textbox(label="Start Time (HH:MM:SS or seconds)")
                             s_cut_end_time = gr.Textbox(label="End Time (HH:MM:SS) or seconds")
-                            s_cut_chose_trim_mode = gr.Radio(
-                                choices=[
-                                    "Frame-accurate trimming: slower but precise",
-                                    "Fast seeking: quick but less precise trimming"
-                                ],
-                                value="Frame-accurate trimming: slower but precise",
-                                label="Trimming Mode",
-                                type='index'
-                            )
 
                             s_cut_run = gr.Button("Cut Video")
                         with gr.Column():
@@ -84,8 +77,31 @@ class GradioManager:
 
                     s_cut_get_v_path.click(get_file, inputs=s_cut_v_path, outputs=s_cut_v_path)
                     s_cut_run.click(cut_video,
-                                    inputs=[s_cut_v_path, s_cut_start_time, s_cut_end_time, s_cut_chose_trim_mode],
+                                    inputs=[s_cut_v_path, s_cut_start_time, s_cut_end_time],
                                     outputs=[s_cut_text_output, s_cut_video_output])
+
+                with gr.Tab("Cut and concatenate"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row():
+                                s_cc_v_path = gr.Textbox(label="Video Path", placeholder="required", scale=8)
+                                s_cc_get_v_path = gr.Button("📂", scale=1)
+                            s_cc_times = gr.Dataframe(
+                                headers=["start", "end"],
+                                datatype="str",
+                                col_count=(2, "fixed"),
+                                type="array",
+                                row_count=1
+                            )
+                            s_cc_run = gr.Button("Cut and concatenate")
+                        with gr.Column():
+                            s_cc_text_output = gr.Textbox(label="Result", interactive=False)
+                            s_cc_video_output = gr.Video(sources=["upload"])
+
+                    s_cc_get_v_path.click(get_file, inputs=s_cc_v_path, outputs=s_cc_v_path)
+                    s_cc_run.click(cut_and_concate,
+                                   inputs=[s_cc_v_path, s_cc_times],
+                                   outputs=[s_cc_text_output, s_cc_video_output])
 
                 with gr.Tab("Convert Media"):
                     with gr.Row():
@@ -253,8 +269,8 @@ class GradioManager:
                         with gr.Column():
                             m_cva_output = gr.Textbox(label="Result")
 
-                m_cva_btn_get_a_path.click(get_audio_files, inputs=m_cva_a_path, outputs=m_cva_a_path)
-                m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output)
+                    m_cva_btn_get_a_path.click(get_audio_files, inputs=m_cva_a_path, outputs=m_cva_a_path)
+                    m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output)
 
                 with gr.Tab("Modify audio"):
                     with gr.Row():
@@ -295,11 +311,11 @@ class GradioManager:
                         with gr.Column():
                             m_modif_output = gr.Textbox(label="Result")
 
-                m_modif_btn_get_v_path.click(get_video_files, inputs=m_modif_v_path, outputs=m_modif_v_path)
-                m_modif_btn_get_a_path.click(get_audio_files, inputs=m_modif_a_path, outputs=m_modif_a_path)
-                m_modif_run.click(batch_modify_audio,
-                                  inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode, m_modif_randomize],
-                                  outputs=m_modif_output)
+                    m_modif_btn_get_v_path.click(get_video_files, inputs=m_modif_v_path, outputs=m_modif_v_path)
+                    m_modif_btn_get_a_path.click(get_audio_files, inputs=m_modif_a_path, outputs=m_modif_a_path)
+                    m_modif_run.click(batch_modify_audio,
+                                      inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode, m_modif_randomize],
+                                      outputs=m_modif_output)
 
                 with gr.Tab("Compress to"):
                     with gr.Row():
@@ -325,9 +341,32 @@ class GradioManager:
                         with gr.Column():
                             m_compr_output = gr.Textbox(label="Result")
 
-                m_compr_get_v_path.click(get_video_files, m_compr_v_path, m_compr_v_path)
-                m_compr_run.click(batch_compress, [m_compr_v_path, m_compr_bitrate, m_compr_min_res, m_compr_vcodec],
-                                  m_compr_output)
+                    m_compr_get_v_path.click(get_video_files, m_compr_v_path, m_compr_v_path)
+                    m_compr_run.click(batch_compress,
+                                      [m_compr_v_path, m_compr_bitrate, m_compr_min_res, m_compr_vcodec],
+                                      m_compr_output)
+
+                with gr.Tab("Concatenate videos"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                m_concat_v_path = gr.Dataframe(
+                                    headers=["Video Paths"],
+                                    datatype="str",
+                                    col_count=(1, "fixed"),
+                                    interactive=True,
+                                    row_count=1,
+                                    type="array",
+                                    wrap=True,
+                                    scale=8
+                                )
+                                m_concat_btn_get_v_path = gr.Button("📂")
+                            m_concat_run = gr.Button("Concatenate")
+                        with gr.Column():
+                            m_concat_output = gr.Textbox(label="Result")
+
+                    m_concat_btn_get_v_path.click(get_video_files, inputs=m_concat_v_path, outputs=m_concat_v_path)
+                    m_concat_run.click(batch_concat, inputs=m_concat_v_path, outputs=m_concat_output)
 
             with gr.Tab("Options"):
                 with gr.Row():
