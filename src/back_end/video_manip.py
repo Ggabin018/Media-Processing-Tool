@@ -1,5 +1,6 @@
 import os
 import os
+import subprocess
 import sys
 import tempfile
 
@@ -281,7 +282,9 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
 
 def videos_concat(videos: list[str]) -> str:
     """
-    Concatenate multiple video files
+    Concatenate multiple video files using FFmpeg's concat protocol
+
+    This method is especially useful for concatenating files with different codecs.
 
     :param videos: list of video paths
     :return: path to the output concatenated video file
@@ -289,62 +292,30 @@ def videos_concat(videos: list[str]) -> str:
     if not videos or len(videos) < 2:
         return "Error: At least two videos are required for concatenation"
 
-    # Check if all files are videos
-    for video in videos:
-        if not is_video(video):
-            return f"Error: {video} is not a video file"
-
-    # Create output filename based on first video
     base_name = os.path.splitext(videos[0])[0]
     output_video = f"{base_name}__concat.mp4"
 
     try:
-        # Create temporary directory for intermediate files
-        temp_dir = tempfile.mkdtemp()
+        # Create intermediate inputs
+        inputs = [ffmpeg.input(video) for video in videos]
 
-        # First pass: normalize all videos to ensure consistent timestamps
-        normalized_videos = []
+        # Create separate video and audio streams for each input
+        video_streams = [input.video for input in inputs]
+        audio_streams = [input.audio for input in inputs]
 
-        for i, video in enumerate(videos):
-            normalized_path = os.path.join(temp_dir, f"norm_{i}.ts")
-            normalized_videos.append(normalized_path)
+        # Concatenate streams
+        joined_video = ffmpeg.concat(*video_streams, v=1, a=0)
+        joined_audio = ffmpeg.concat(*audio_streams, v=0, a=1)
 
-            # Convert to TS format which helps with timestamp issues
-            stream = ffmpeg.input(video)
-            output = ffmpeg.output(
-                stream,
-                normalized_path,
-                f='mpegts',  # Use MPEG-TS format which handles timestamps better
-                acodec='aac',  # Consistent audio codec
-                vcodec='libx264'  # Consistent video codec
-            )
-            output = ffmpeg.overwrite_output(output)
-            ffmpeg.run(output, quiet=False)  # Show output for debugging
-
-        # Second pass: concat using TS inputs (which handle timestamps better)
-        inputs = []
-        for norm_video in normalized_videos:
-            inputs.append(ffmpeg.input(norm_video))
-
-        joined = ffmpeg.concat(*inputs, v=1, a=1)
-        output = ffmpeg.output(joined, output_video, f='mp4')
+        # Combine back and output
+        output = ffmpeg.output(joined_video, joined_audio, output_video)
         output = ffmpeg.overwrite_output(output)
 
-        ffmpeg.run(output, quiet=False)  # Show output for debugging
-
-        # Clean up temporary files
-        for file in normalized_videos:
-            if os.path.exists(file):
-                os.unlink(file)
-        os.rmdir(temp_dir)
-
+        ffmpeg.run(output)
         return output_video
 
-    except ffmpeg.Error as e:
-        error_message = e.stderr.decode() if hasattr(e.stderr, 'decode') else str(e.stderr)
-        return f"ffmpeg error: {error_message}"
     except Exception as e:
-        return f"Error during video concatenation: {str(e)}"
+        return f"Error: {str(e)}"
 
 
 def multiple_cuts_plus_concatenate(video_path: str, times: list[list[str, str]]) -> str:
