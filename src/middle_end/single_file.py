@@ -55,9 +55,9 @@ def modify_audio(video_path: str, audio_path: str, opt: str = "replace") -> tupl
         return f"Error: {str(e)}", None
 
 
-def compress_vid(video_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec: str = "hevc_nvenc"):
+def compress_vid(video_path: str, bitrate: int = 8000, min_res: str = 1080, vcodec: str = "hevc_nvenc"):
     try:
-        path = video_compress(video_path, target_bitrate=bitrate, min_resolution=min_res, vcodec=vcodec)
+        path = video_compress(video_path, target_bitrate=bitrate, min_resolution=int(min_res), vcodec=vcodec)
         return path, make_temp_copy(path)
     except Exception as e:
         return f"Error: {str(e)}", None
