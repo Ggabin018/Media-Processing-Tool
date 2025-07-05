@@ -308,7 +308,8 @@ def videos_concat(videos: list[str]) -> str:
         joined_audio = ffmpeg.concat(*audio_streams, v=0, a=1)
 
         # Combine back and output
-        output = ffmpeg.output(joined_video, joined_audio, output_video)
+        output = ffmpeg.output(joined_video, joined_audio, output_video,
+                               vcodec="libx264", acodec="aac", video_bitrate=f"{get_video_bitrate(videos[0])}k" ,audio_bitrate="192K")
         output = ffmpeg.overwrite_output(output)
 
         ffmpeg.run(output)
