@@ -319,7 +319,7 @@ def videos_concat(videos: list[str]) -> str:
         return f"Error: {str(e)}"
 
 
-def multiple_cuts_plus_concatenate(video_path: str, times: list[list[str, str]]) -> str:
+def multiple_cuts_plus_concatenate(video_path: str, times: list[tuple[str, str|None]]) -> str:
     video_paths = []
     padding = len(str(len(times)))
     for i, (start, end) in enumerate(times):

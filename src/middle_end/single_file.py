@@ -2,7 +2,7 @@ import os
 import shutil
 import tempfile
 
-from toolbox.utils import regularize_path
+from toolbox.utils import regularize_path, to_seconds
 from back_end.video_manip import video_cut, video_compress, is_video, multiple_cuts_plus_concatenate
 from back_end.audio_manip import audio_replace, audio_combine
 from back_end.media_converter import convert_media
@@ -63,10 +63,33 @@ def compress_vid(video_path: str, bitrate: int = 8000, min_res: str = 1080, vcod
         return f"Error: {str(e)}", None
 
 
-def cut_and_concate(video_path: str, times: list[list[str, str]]) -> tuple[str, str | None]:
-    video_path = regularize_path(video_path)
-    if not os.path.exists(video_path):
-        return f"{video_path} does not exit", None
+def parse_input(input_str: str) -> list[str]:
+    lines = input_str.splitlines()
+    for line in lines:
+        try:
+            to_seconds(line)
+        except Exception:
+            raise Exception(f"Error: {line}")
 
-    path = multiple_cuts_plus_concatenate(video_path, times)
-    return path, make_temp_copy(path)
+    return lines
+
+def cut_and_concate(video_path: str, input_start: str, input_end: str) -> tuple[str, str | None]:
+    try:
+        video_path = regularize_path(video_path)
+        if not os.path.exists(video_path):
+            return f"{video_path} does not exit", None
+
+        starts = parse_input(input_start)
+        ends = parse_input(input_end)
+
+        if len(ends) + 1 == len(starts):
+            ends.append(None)
+
+        if len(starts) != len(ends):
+            raise Exception(f"Error: starts={len(starts)} != ends={len(ends)}")
+
+        path = multiple_cuts_plus_concatenate(video_path, list(zip(starts, ends)))
+        return path, make_temp_copy(path)
+
+    except Exception as e:
+        return f"Error: {e}", None

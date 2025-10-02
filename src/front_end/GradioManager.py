@@ -86,13 +86,11 @@ class GradioManager:
                             with gr.Row():
                                 s_cc_v_path = gr.Textbox(label="Video Path", placeholder="required", scale=8)
                                 s_cc_get_v_path = gr.Button("📂", scale=1)
-                            s_cc_times = gr.Dataframe(
-                                headers=["start", "end"],
-                                datatype="str",
-                                col_count=(2, "fixed"),
-                                type="array",
-                                row_count=1
-                            )
+
+                            with gr.Row(): # TODO: shift+enter (add a new line)
+                                s_cc_start_input = gr.Textbox(label="start", lines=1, max_lines=20)
+                                s_cc_end_input = gr.Textbox(label="end", lines=1, max_lines=20)
+
                             s_cc_run = gr.Button("Cut and concatenate")
                         with gr.Column():
                             s_cc_text_output = gr.Textbox(label="Result", interactive=False)
@@ -100,7 +98,7 @@ class GradioManager:
 
                     s_cc_get_v_path.click(get_file, inputs=s_cc_v_path, outputs=s_cc_v_path)
                     s_cc_run.click(cut_and_concate,
-                                   inputs=[s_cc_v_path, s_cc_times],
+                                   inputs=[s_cc_v_path, s_cc_start_input, s_cc_end_input],
                                    outputs=[s_cc_text_output, s_cc_video_output])
 
                 with gr.Tab("Convert Media"):
