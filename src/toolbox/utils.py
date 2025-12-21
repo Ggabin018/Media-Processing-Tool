@@ -1,5 +1,5 @@
 import os
-
+from pathlib import Path
 
 def to_seconds(var) -> int | None:
     if var is None:
@@ -33,13 +33,3 @@ def regularize_path(path: str) -> str:
     path = os.path.normpath(path)
     return path
 
-def get_correct_files(files: list[str]) -> list[str]:
-    res = []
-    files = [f[0] for f in files]
-    for f in files:
-        if f == "":
-            continue
-        f = regularize_path(f)
-        if os.path.exists(f):
-            res.append(f)
-    return res

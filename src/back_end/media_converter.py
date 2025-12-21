@@ -1,9 +1,10 @@
 import os
 import ffmpeg
 
-from toolbox.ProgressBar import progress_bar
+from toolbox.progress_bar import progress_bar
+from pathlib import Path
 
-def get_media_duration(path: str) -> float | str:
+def get_media_duration(path: Path) -> float | str:
     """
     :param path: path to audio
     :return: audio duration
@@ -20,7 +21,7 @@ def get_media_duration(path: str) -> float | str:
         return f"Unexpected error: {str(e)}"
 
 
-def convert_media(input_path: str, ext: str) -> str:
+def convert_media(input_path: Path, ext: str) -> str:
     """
     Convert a media file (video or audio) to another format
 
@@ -31,7 +32,7 @@ def convert_media(input_path: str, ext: str) -> str:
     Returns:
         str: Path to the converted file or error message
     """
-    if not os.path.exists(input_path):
+    if not input_path.exists():
         return f"Error: {input_path} doesn't exist"
 
     duration = get_media_duration(input_path)

@@ -6,10 +6,11 @@ from back_end.video_manip import video_compress
 from back_end.media_converter import convert_media
 
 from toolbox.Parameters import Params
+from pathlib import Path
 
 params = Params()
 
-def files_compress_videos(files: list[str], bitrate, min_res, vcodec) -> str:
+def files_compress_videos(files: list[Path], bitrate, min_res, vcodec) -> str:
     """
     compress all videos in a subdir output
     """
@@ -24,7 +25,7 @@ def files_compress_videos(files: list[str], bitrate, min_res, vcodec) -> str:
     return '\n'.join(res)
 
 
-def files_convert(files: list[str], ext: str) -> str:
+def files_convert(files: list[Path], ext: str) -> str:
     """
     Convert media files (video or audio) to another format
     """
@@ -39,7 +40,7 @@ def files_convert(files: list[str], ext: str) -> str:
     return '\n'.join(res)
 
 
-def files_audio_combine(videos: list[str], audios: list[str], randomize: bool) -> str:
+def files_audio_combine(videos: list[Path], audios: list[str], randomize: bool) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     """
@@ -53,7 +54,7 @@ def files_audio_combine(videos: list[str], audios: list[str], randomize: bool) -
             audio_to_combine = random.choice(audios)
         else:
             audio_to_combine = audios[i]
-            i = (i + 1) % len(audios)
+            i = (i + 1) % n_audios
         res.append(audio_combine(file, audio_to_combine))
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
@@ -62,7 +63,7 @@ def files_audio_combine(videos: list[str], audios: list[str], randomize: bool) -
     return '\n'.join(res)
 
 
-def files_audio_replace(videos: list[str], audios: list[str], randomize: bool) -> str:
+def files_audio_replace(videos: list[Path], audios: list[Path], randomize: bool) -> str:
     """
     replace audios of files with compression
     """
@@ -85,7 +86,7 @@ def files_audio_replace(videos: list[str], audios: list[str], randomize: bool) -
     return '\n'.join(res)
 
 
-def files_convert_video_to_video(videos: list[str], ext: str) -> str:
+def files_convert_video_to_video(videos: list[Path], ext: str) -> str:
     res = []
 
     def process_file(file):

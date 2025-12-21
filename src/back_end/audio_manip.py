@@ -1,82 +1,83 @@
-import logging
 import shutil
 import tempfile
 import ffmpeg
 import os
 import json
 import subprocess
+from pathlib import Path
 
 from math import ceil
 from back_end.video_manip import get_video_duration
+from toolbox.exceptions import FileTypeError
 
 
-def is_audio(path: str):
-    _, ext = os.path.splitext(path)
-    return ext in [".mp3", ".wav", ".ogg", ".flac"]
+def is_audio(path: Path) -> bool:
+    """Return if a file is an audio"""
+    _, file_extension = os.path.splitext(path)
+    return file_extension in [".mp3", ".wav", ".ogg", ".flac"]
 
+def check_is_audio(f):
+    """Decorator checking existence and type"""
+    def wrap(*args, **kwargs):
+        path: Path = args[0]
+        if not path.exists:
+            raise FileNotFoundError(f"{path} doesn't exist")
 
-def get_audio_duration(audio_path: str) -> float | str:
+        if is_audio:
+            return f(*args, **kwargs)
+        else:
+            raise FileTypeError("Not a audio file")
+    return wrap
+
+@check_is_audio
+def get_audio_duration(audio_path: Path) -> float:
     """
     :param audio_path: path to audio
     :return: audio duration
     """
-    if not is_audio(audio_path):
-        return f"Error: Not a audio file"
-    try:
-        probe = ffmpeg.probe(audio_path)
-        duration = float(probe['format']['duration'])
-        return duration
-    except ffmpeg.Error as e:
-        return f"ffmpeg error: {e.stderr}"
-    except KeyError:
-        return "Could not find duration information in the video file"
-    except Exception as e:
-        return f"Unexpected error: {str(e)}"
+    probe = ffmpeg.probe(audio_path)
+    duration = float(probe['format']['duration'])
+    return duration
 
-
-def get_loudness(file_path):
+@check_is_audio
+def get_loudness(file_path: Path) -> float:
     """Get the integrated loudness of an audio file"""
     json_text = ""
-    try:
-        # loudnorm filter
-        args = (
-            ffmpeg
-            .input(file_path)
-            .filter_('loudnorm', print_format='json', i=-24, lra=7, tp=-2)
-            .output('-', format='null')
-            .compile()
-        )
 
-        # reduce output noise
-        args.insert(1, '-hide_banner')
+    # loudnorm filter
+    args = (
+        ffmpeg
+        .input(file_path)
+        .filter_('loudnorm', print_format='json', i=-24, lra=7, tp=-2)
+        .output('-', format='null')
+        .compile()
+    )
 
-        process = subprocess.run(
-            args,
-            stderr=subprocess.PIPE,
-            text=True
-        )
+    # reduce output noise
+    args.insert(1, '-hide_banner')
 
-        # Extract JSON from stderr after "[Parsed_loudnorm_0 @ ...]"
-        stderr = process.stderr
-        json_match_start = stderr.rfind('{\n')
-        json_match_end = stderr.rfind('}\n')
-        if 0 <= json_match_start < json_match_end:
-            json_text = stderr[json_match_start:json_match_end + 1]
-            loudness_info = json.loads(json_text)
-            return float(loudness_info.get('input_i', -24.0))
+    process = subprocess.run(
+        args,
+        stderr=subprocess.PIPE,
+        text=True
+    )
 
-        logging.error("Error: get_loudness -> returning default value")
+    # Extract JSON from stderr after "[Parsed_loudnorm_0 @ ...]"
+    stderr = process.stderr
+    json_match_start = stderr.rfind('{\n')
+    json_match_end = stderr.rfind('}\n')
+    if 0 <= json_match_start < json_match_end:
+        json_text = stderr[json_match_start:json_match_end + 1]
+        loudness_info = json.loads(json_text)
+        return float(loudness_info.get('input_i', -24.0))
 
-    except ffmpeg.Error as e:
-        logging.error(f"Error(get_loudness): ffmpeg: {e}")
-    except json.JSONDecodeError as e:
-        logging.error(f"Error(get_loudness): json: {e}\n{json_text}\n")
-    except (ValueError, IndexError) as e:
-        logging.error(f"Error(get_loudness): ValueError or IndexError: {e}\n{json_text}\n")
+    print("Error: get_loudness -> returning default value")
+
     return -24.0
 
 
-def apply_reverb(input_path: str) -> str:
+@check_is_audio
+def apply_reverb(input_path: Path) -> str:
     """
     add reverb to a copy of input file
     """
@@ -103,8 +104,8 @@ def apply_reverb(input_path: str) -> str:
 
     return output_path
 
-
-def apply_deep_voice(input_path: str, sampling_rate: float = 0.8) -> str:
+@check_is_audio
+def apply_deep_voice(input_path: Path, sampling_rate: float = 0.8) -> str:
     """
     add deep effect to a copy of input file
     """
@@ -132,17 +133,14 @@ def apply_deep_voice(input_path: str, sampling_rate: float = 0.8) -> str:
 
     return output_path
 
-
-def multiply_audio(input_audio_path: str, output_audio_path: str, multiplier: int) -> None:
+@check_is_audio
+def multiply_audio(input_audio_path: Path, output_audio_path: Path, multiplier: int) -> None:
     """
     Multiply an audio file by concatenating it multiple times, using only ffmpeg
     :param input_audio_path: Path to the input audio file
     :param output_audio_path: Path to write the output audio file
     :param multiplier: Number of times to repeat the audio
     """
-    if not os.path.exists(input_audio_path):
-        raise Exception(f"{input_audio_path} doesn't exist")
-
     if multiplier <= 0:
         raise Exception(f"Invalid multiplier: {multiplier}")
 
@@ -179,15 +177,10 @@ def multiply_audio(input_audio_path: str, output_audio_path: str, multiplier: in
             os.unlink(temp_input_path)
 
 
-def merge_audio(audio1_path: str, audio2_path: str, output_mp3_path: str) -> None:
+def merge_audio(audio1_path: Path, audio2_path: Path, output_mp3_path: str) -> None:
     """
     Only merge two audio files with automatic normalization
     """
-    if not os.path.exists(audio1_path):
-        raise Exception(f"{audio1_path} doesn't exist")
-    if not os.path.exists(audio2_path):
-        raise Exception(f"{audio2_path} doesn't exist")
-
     loudness1 = get_loudness(audio1_path)
     loudness2 = get_loudness(audio2_path)
 
@@ -215,7 +208,7 @@ def merge_audio(audio1_path: str, audio2_path: str, output_mp3_path: str) -> Non
                   ).overwrite_output().run()
 
 
-def mix_audio_and_export(video_path: str, audio_path: str) -> str:
+def mix_audio_and_export(video_path: Path, audio_path: Path) -> str:
     """
     Merge audio in video using ffmpeg
     :param video_path: path to video file
@@ -227,11 +220,6 @@ def mix_audio_and_export(video_path: str, audio_path: str) -> str:
     # Get durations
     video_duration = get_video_duration(video_path)
     audio_duration = get_audio_duration(audio_path)
-
-    if isinstance(video_duration, str):
-        raise Exception(f"Video duration error: {video_duration}")
-    if isinstance(audio_duration, str):
-        raise Exception(f"Audio duration error: {audio_duration}")
 
     # Extract audio from video and convert to consistent format
     video_audio_path = os.path.splitext(video_path)[0] + "__video_audio.wav"
@@ -294,13 +282,13 @@ def mix_audio_and_export(video_path: str, audio_path: str) -> str:
             if temp_file and os.path.exists(temp_file):
                 try:
                     os.remove(temp_file)
-                except:
-                    pass
+                except Exception:
+                    print("Failed to remove " + str(temp_file))
 
     return output_mp3_path
 
 
-def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.mp4", compress: bool = False) -> str:
+def audio_replace(video_path: Path, audio_path: Path, name_add: str = "__replace.mp4", compress: bool = False) -> str:
     """
     replace audio, compress possible
     :param video_path: path to input video file
@@ -311,8 +299,6 @@ def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.m
     """
     audio_duration = get_audio_duration(audio_path)
     video_duration = get_video_duration(video_path)
-    if type(video_duration) == str:
-        return video_duration
 
     # need audio duration -gt video
     if audio_duration < video_duration:
@@ -349,7 +335,7 @@ def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.m
     return output_path
 
 
-def audio_combine(video_path: str, audio_path: str, compress: bool = True) -> str:
+def audio_combine(video_path: Path, audio_path: Path, compress: bool = True) -> str:
     """
     combine video file with audio file
     """

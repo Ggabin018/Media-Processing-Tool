@@ -3,7 +3,7 @@ import random
 from concurrent.futures import ThreadPoolExecutor
 
 from back_end.audio_manip import audio_combine, audio_replace, is_audio
-from back_end.video_manip import video_compress, is_video
+from back_end.video_manip import video_compress, check_is_video
 from back_end.media_converter import convert_media
 from toolbox.Parameters import Params
 
@@ -23,7 +23,7 @@ def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080,
     video_files = []
     for fichier in os.listdir(dir_path):
         video_path = os.path.join(dir_path, fichier)
-        if is_video(video_path):
+        if check_is_video(video_path):
             video_files.append(video_path)
 
     res = []
@@ -95,7 +95,7 @@ def dir_audio_combine(videos_dir: str, audio_dir: str, randomize: bool) -> str:
         path_mp4 = os.path.join(videos_dir, file)
         res.append(audio_combine(path_mp4, audio_to_combine))
 
-    files = [file for file in os.listdir(videos_dir) if is_video(file)]
+    files = [file for file in os.listdir(videos_dir) if check_is_video(file)]
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, files)
@@ -126,7 +126,7 @@ def dir_audio_replace(videos_dir: str, audio_dir: str, randomize: bool) -> str:
         path_mp4 = os.path.join(videos_dir, file)
         res.append(audio_replace(path_mp4, audio_to_combine))
 
-    files = [file for file in os.listdir(videos_dir) if is_video(file)]
+    files = [file for file in os.listdir(videos_dir) if check_is_video(file)]
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
         executor.map(process_file, files)

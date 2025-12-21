@@ -2,10 +2,11 @@ import json
 import logging
 import os.path
 
-from toolbox.Singleton import SingletonMeta
+from toolbox.singleton import SingletonMeta
 
 
 class Params(metaclass=SingletonMeta):
+    """Singleton grouping all parameters in the application"""
     params_dict = {}
 
     @staticmethod
