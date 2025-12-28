@@ -12,7 +12,7 @@ from toolbox.wrapper import exception_as_str
 temp_file = None
 
 
-def make_temp_copy(src_path: Path) -> str | None:
+def make_temp_copy(src_path: str) -> str | None:
     global temp_file
 
     _, file_extension = os.path.splitext(src_path)
@@ -22,7 +22,9 @@ def make_temp_copy(src_path: Path) -> str | None:
         temp_file = temp_path.name
     tmp = shutil.copy(src_path, temp_file)
     if is_video(tmp):
-        return video_compress(tmp, target_bitrate=1000, min_resolution=480, vcodec="libx264")
+        tmp = Path(tmp)
+        ret = video_compress(tmp, target_bitrate=1000, min_resolution=480, vcodec="libx264")
+        return ret
 
 @exception_as_str(2)
 def cut_video(video_path: str, start: str | None, end: str | None) -> tuple[str, str | None]:

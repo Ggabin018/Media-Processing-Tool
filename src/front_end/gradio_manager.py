@@ -9,7 +9,7 @@ from middle_end.single_file import *
 from middle_end.multiple_files import *
 from front_end.script_js import js
 from toolbox.draggable_list_box import WindowDragListBox
-from toolbox.Parameters import Params
+from toolbox.parameters import Params
 from toolbox.tkinter_getters import *
 
 
