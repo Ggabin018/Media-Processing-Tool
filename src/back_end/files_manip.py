@@ -5,7 +5,7 @@ from back_end.audio_manip import audio_combine, audio_replace
 from back_end.video_manip import video_compress
 from back_end.media_converter import convert_media
 
-from toolbox.Parameters import Params
+from toolbox.parameters import Params
 from pathlib import Path
 
 params = Params()

@@ -5,12 +5,14 @@ from concurrent.futures import ThreadPoolExecutor
 from back_end.audio_manip import audio_combine, audio_replace, is_audio
 from back_end.video_manip import video_compress, check_is_video
 from back_end.media_converter import convert_media
-from toolbox.Parameters import Params
+from toolbox.parameters import Params
+from pathlib import Path
 
 params = Params()
 
+# replace str by Path
 
-def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec: str = "hevc_nvenc") -> str:
+def dir_compress_videos(dir_path: Path, bitrate: int = 8000, min_res: int = 1080, vcodec: str = "hevc_nvenc") -> str:
     """
     compress all videos in a subdir output
     :param dir_path: chemin absolue du dossier
@@ -38,12 +40,13 @@ def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080,
     return '\n'.join(res)
 
 
-def compress_videos_dossier_parent(parent_dir: str):
+def compress_videos_dossier_parent(parent_dir: Path):
     """
     use convertir_videos_dossier sur ses sous-dossiers
     :param parent_dir: chemin abs dossier parent
     """
     try:
+        # TODO: use iter from Path, and maybe change os check
         # Just subdir, no recursive
         for child_dir in os.listdir(parent_dir):
             child_dir_path = os.path.join(parent_dir, child_dir)
@@ -54,7 +57,7 @@ def compress_videos_dossier_parent(parent_dir: str):
         print(f"Error : {str(e)}")
 
 
-def dir_convert_media(videos_dir: str, ext: str) -> str:
+def dir_convert_media(videos_dir: Path, ext: str) -> str:
     """
     extrait les audios des vidéos
     :param videos_dir: dossier contenant les vidéos
@@ -63,6 +66,7 @@ def dir_convert_media(videos_dir: str, ext: str) -> str:
     res = []
 
     def process_file(file):
+        # TODO: change join
         path_mp4 = os.path.join(videos_dir, file)
         res.append(convert_media(path_mp4, ext))
 
@@ -74,12 +78,13 @@ def dir_convert_media(videos_dir: str, ext: str) -> str:
     return '\n'.join(res)
 
 
-def dir_audio_combine(videos_dir: str, audio_dir: str, randomize: bool) -> str:
+def dir_audio_combine(videos_dir: Path, audio_dir: Path, randomize: bool) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     :param videos_dir: dossier contenant les vidéos
     :param audio_dir: dossier contenant les audios à superposer
     """
+    # TODO: change join
     res = []
     audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if is_audio(file)]
     n_audios = len(audio_list)
@@ -103,7 +108,7 @@ def dir_audio_combine(videos_dir: str, audio_dir: str, randomize: bool) -> str:
     return '\n'.join(res)
 
 
-def dir_audio_replace(videos_dir: str, audio_dir: str, randomize: bool) -> str:
+def dir_audio_replace(videos_dir: Path, audio_dir: Path, randomize: bool) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     replace audio with compression
@@ -134,7 +139,7 @@ def dir_audio_replace(videos_dir: str, audio_dir: str, randomize: bool) -> str:
     return '\n'.join(res)
 
 
-def dir_audio_replace_no_thread(videos_dir, audio_dir) -> str:
+def dir_audio_replace_no_thread(videos_dir: Path, audio_dir: Path) -> str:
     """
     combine les vidéos et leurs audios avec les audios d'un autre dossier
     :param videos_dir: dossier contenant les vidéos
@@ -152,7 +157,7 @@ def dir_audio_replace_no_thread(videos_dir, audio_dir) -> str:
     return '\n'.join(res)
 
 
-def rename_files(input_dir: str):
+def rename_files(input_dir: Path):
     """
     enlève les "__" des noms de fichiers, tolérant aux doublons
     :param input_dir: dossier contenant les fichiers
@@ -175,7 +180,8 @@ def rename_files(input_dir: str):
             os.rename(old_path, new_path)
 
 
-def dir_convert_video_to_video(videos_dir: str, ext: str) -> str:
+def dir_convert_video_to_video(videos_dir: Path, ext: str) -> str:
+    # TODO
     res = []
     files = [os.path.join(videos_dir, file) for file in os.listdir(videos_dir) if
              file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.webm'))]

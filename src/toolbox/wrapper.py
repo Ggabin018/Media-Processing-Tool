@@ -1,6 +1,12 @@
 from toolbox.exceptions import FileTypeError
 
+# TODO: oneline exception maybe 
 def exception_as_str(n_return_value=1):
+    """
+    catch the exception, return it as a string (first value)
+    
+    :param n_return_value: the number of string to return
+    """
     def dec(f):
         def wrap(*args, **kwargs):
             try:
