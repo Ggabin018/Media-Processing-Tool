@@ -38,10 +38,13 @@ def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080,
     return '\n'.join(res)
 
 
-def compress_videos_dossier_parent(parent_dir: str):
+def compress_videos_dossier_parent(parent_dir: str, bitrate: int, min_res: int, vcodec: str):
     """
     use convertir_videos_dossier sur ses sous-dossiers
     :param parent_dir: chemin abs dossier parent
+    :param bitrate: bitrate in kbps (default: 8000)
+    :param min_res: minimum resolution
+    :param vcodec: video codec
     """
     try:
         # Just subdir, no recursive
@@ -49,7 +52,7 @@ def compress_videos_dossier_parent(parent_dir: str):
             child_dir_path = os.path.join(parent_dir, child_dir)
 
             if os.path.isdir(child_dir_path):
-                dir_compress_videos(child_dir_path)
+                dir_compress_videos(child_dir_path, bitrate, min_res, vcodec)
     except Exception as e:
         print(f"Error : {str(e)}")
 
@@ -187,3 +190,6 @@ def dir_convert_video_to_video(videos_dir: str, ext: str) -> str:
         executor.map(process_file, files)
 
     return '\n'.join(res)
+
+if __name__ == '__main__':
+    compress_videos_dossier_parent(r"E:\Downloads\_DONE")

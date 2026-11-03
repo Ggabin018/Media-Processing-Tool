@@ -152,9 +152,9 @@ def video_cut(input_video: str, start=None, end=None) -> str:
         else:
             stream = ffmpeg.output(stream, output_video, c="copy")
 
-        stream = ffmpeg.overwrite_output(stream)
+        output = ffmpeg.overwrite_output(stream)
 
-        ffmpeg.run(stream)
+        ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
 
         return output_video
 
@@ -194,7 +194,7 @@ def video_upscale(input_video: str, factor: int) -> str:
         output = ffmpeg.output(video, audio, output_video, acodec='copy')
         output = ffmpeg.overwrite_output(output)
 
-        ffmpeg.run(output)
+        ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
 
         return output_video
 
@@ -228,51 +228,51 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
         if height is None:
             return width
 
+        # adjust resolution + avoid upscale
+        min_resolution = min(width, height, min_resolution)
+
         # Check if compression is needed
-        if width >= min_resolution or height >= min_resolution:
-            if output_filename == "":
-                output_filename = os.path.splitext(video_path)[0] + f"__compressed.mp4"
+        if output_filename == "":
+            output_filename = os.path.splitext(video_path)[0] + f"__compressed.mp4"
 
-            # CUDA acceleration
-            input_stream = ffmpeg.input(video_path, hwaccel='cuda')
+        # CUDA acceleration
+        input_stream = ffmpeg.input(video_path, hwaccel='cuda')
 
-            # scaling based on orientation
-            if width > height:
-                video = input_stream.video.filter('scale', -2, min_resolution)
-            else:
-                video = input_stream.video.filter('scale', min_resolution, -2)
-
-            audio = input_stream.audio
-
-            output = ffmpeg.output(
-                video,
-                audio,
-                output_filename,
-                vcodec=vcodec,
-                video_bitrate=f'{target_bitrate}k',
-                acodec='copy',
-                pix_fmt='yuv420p',
-                **{'stats': None, 'progress': 'pipe:1'}  # Force progress output
-            )
-
-            output = ffmpeg.overwrite_output(output)
-
-            print(f"Compressing {os.path.basename(video_path)} to {os.path.basename(output_filename)}")
-            process = ffmpeg.run_async(output, pipe_stdout=True)
-
-            progress_bar(duration, process)
-
-            # Wait for process to finish
-            return_code = process.wait()
-
-            if return_code == 0:
-                sys.stdout.write("\n")
-                print(f"Compression completed successfully")
-                return output_filename
-            else:
-                return f"\nCompression failed with return code {return_code}"
+        # scaling based on orientation
+        if width > height:
+            video = input_stream.video.filter('scale', -2, min_resolution)
         else:
-            return f"{video_path} is already < to {min_resolution}."
+            video = input_stream.video.filter('scale', min_resolution, -2)
+
+        audio = input_stream.audio
+
+        output = ffmpeg.output(
+            video,
+            audio,
+            output_filename,
+            vcodec=vcodec,
+            video_bitrate=f'{target_bitrate}k',
+            acodec='copy',
+            pix_fmt='yuv420p',
+            **{'stats': None, 'progress': 'pipe:1'}  # Force progress output
+        )
+
+        output = ffmpeg.overwrite_output(output)
+
+        print(f"Compressing {os.path.basename(video_path)} to {os.path.basename(output_filename)}")
+        process = ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
+
+        progress_bar(duration, process)
+
+        # Wait for process to finish
+        return_code = process.wait()
+
+        if return_code == 0:
+            sys.stdout.write("\n")
+            print(f"Compression completed successfully")
+            return output_filename
+        else:
+            return f"\nCompression failed with return code {return_code}"
 
     except ffmpeg.Error as e:
         return f"ffmpeg error: {e.stderr.decode() if hasattr(e.stderr, 'decode') else e.stderr}"
@@ -312,7 +312,7 @@ def videos_concat(videos: list[str]) -> str:
                                vcodec="libx264", acodec="aac", video_bitrate=f"{get_video_bitrate(videos[0])}k" ,audio_bitrate="192K")
         output = ffmpeg.overwrite_output(output)
 
-        ffmpeg.run(output)
+        ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
         return output_video
 
     except Exception as e:

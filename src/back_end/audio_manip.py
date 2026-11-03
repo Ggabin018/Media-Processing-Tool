@@ -300,7 +300,8 @@ def mix_audio_and_export(video_path: str, audio_path: str) -> str:
     return output_mp3_path
 
 
-def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.mp4", compress: bool = False) -> str:
+# TODO: need to test if bitrate change after replacement
+def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.mp4") -> str:
     """
     replace audio, compress possible
     :param video_path: path to input video file
@@ -327,17 +328,10 @@ def audio_replace(video_path: str, audio_path: str, name_add: str = "__replace.m
     audio_stream = audio_input.audio
 
     output_args = {
-        'c:v': 'hevc_nvenc',
-        'c:a': 'copy',
+        'c': 'copy',
         'strict': 'experimental',
         'shortest': None
     }
-
-    if compress:
-        output_args.update({
-            'b:v': '8000k',
-            'b:a': '192k'
-        })
 
     ffmpeg.output(
         video_stream,

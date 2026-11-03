@@ -149,7 +149,7 @@ class GradioManager:
                                 s_compr_v_path = gr.Textbox(label="Video Path", scale=8)
                                 s_compr_btn_get_v_path = gr.Button("📂", scale=1)
                             s_compr_bitrate = gr.Textbox(label="Target bitrate", value="8000")
-                            s_compr_min_res = gr.Textbox(label="Minimum resolution", value="1080")
+                            s_compr_min_res = gr.Textbox(label="Minimum resolution (not upscaled)", value="1080")
                             s_compr_vcodec = gr.Dropdown(label="Video codec", value=params.get_vcodec(),
                                                          choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
                             s_compr_run = gr.Button("Compress")
@@ -220,6 +220,24 @@ class GradioManager:
                     d_compr_run.click(directory_compress,
                                       [d_compr_v_path, d_compr_bitrate, d_compr_min_res, d_compr_vcodec],
                                       d_compr_output)
+
+                with gr.Tab("Compress on parent directory"):
+                    with gr.Row():
+                        with gr.Column():
+                            with gr.Row(equal_height=True):
+                                d_pcompr_v_path = gr.Textbox(label="Video Directory Path", scale=8)
+                                d_pcompr_btn_get_v_path = gr.Button("📂", scale=1)
+                            d_pcompr_bitrate = gr.Textbox(label="Bitrate wanted:", value="8000")
+                            d_pcompr_min_res = gr.Textbox(label="Minimum resolution", value="1080")
+                            d_pcompr_vcodec = gr.Dropdown(label="Video codec", value=params.get_vcodec(),
+                                                         choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
+
+                            d_pcompr_run = gr.Button("Batch compress video")
+
+                        d_pcompr_btn_get_v_path.click(get_dir, d_pcompr_v_path, d_pcompr_btn_get_v_path)
+                        d_pcompr_run.click(pdirectory_compress,
+                                          [d_pcompr_v_path, d_pcompr_bitrate, d_pcompr_min_res, d_pcompr_vcodec])
+
 
             with gr.Tab("Multiples Videos"):
                 with gr.Tab("Convert Videos"):

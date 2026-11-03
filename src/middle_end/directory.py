@@ -3,7 +3,7 @@ from back_end.dir_manip import (
     dir_audio_replace,
     dir_audio_combine,
     dir_convert_video_to_video,
-    dir_compress_videos
+    dir_compress_videos, compress_videos_dossier_parent
 )
 
 from toolbox.utils import regularize_path
@@ -36,3 +36,10 @@ def directory_compress(dir_path: str, bitrate: int = 8000, min_res: str = "1080"
         return dir_compress_videos(dir_path, bitrate, int(min_res), vcodec)
     except Exception as e:
         return f"Error: {str(e)}"
+
+def pdirectory_compress(dir_path: str, bitrate: int = 8000, min_res: str = "1080", vcodec="hevc_nvenc") -> None:
+    try:
+        return compress_videos_dossier_parent(dir_path, bitrate, int(min_res), vcodec)
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        return None
