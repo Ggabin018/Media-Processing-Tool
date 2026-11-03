@@ -234,7 +234,7 @@ class GradioManager:
 
                             d_pcompr_run = gr.Button("Batch compress video")
 
-                        d_pcompr_btn_get_v_path.click(get_dir, d_pcompr_v_path, d_pcompr_btn_get_v_path)
+                        d_pcompr_btn_get_v_path.click(get_dir, d_pcompr_v_path, d_pcompr_v_path)
                         d_pcompr_run.click(pdirectory_compress,
                                           [d_pcompr_v_path, d_pcompr_bitrate, d_pcompr_min_res, d_pcompr_vcodec])
 

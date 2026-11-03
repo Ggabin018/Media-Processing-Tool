@@ -55,6 +55,6 @@ def get_dir(default_path: str) -> str:
 
     dir_path = filedialog.askdirectory()
     root.destroy()
-    if dir_path is None:
+    if not dir_path:
         return default_path
     return dir_path

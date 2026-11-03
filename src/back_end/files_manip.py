@@ -53,7 +53,7 @@ def files_audio_combine(videos: list[str], audios: list[str], randomize: bool) -
             audio_to_combine = random.choice(audios)
         else:
             audio_to_combine = audios[i]
-            i = (i + 1) % len(audios)
+            i = (i + 1) % n_audios
         res.append(audio_combine(file, audio_to_combine))
 
     with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
