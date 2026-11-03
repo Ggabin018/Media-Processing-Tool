@@ -1,41 +1,36 @@
-import os
-import unittest
+"""Former unittest test_video_modif.py, ported to pytest on the sample videos of the repo."""
+import pytest
 
+from conftest import VIDEOS
 from back_end.video_manip import get_video_duration, get_resolution, get_video_bitrate, get_original_codecs, \
     is_video
 
-
-class TestVideoProcessing(unittest.TestCase):
-
-    # check if test file exists
-    def test_file_exists(self):
-        v_path = "videos/test.mp4"
-        self.assertTrue(os.path.exists(v_path))
-
-    def test_get_video_duration(self):
-        v_path = "videos/test.mp4"
-        expected_duration = 187.0
-        self.assertEqual(get_video_duration(v_path), expected_duration)
-
-    def test_get_resolution(self):
-        v_path = "videos/test.mp4"
-        expected_resolution = (1920, 1080)
-        self.assertEqual(get_resolution(v_path), expected_resolution)
-
-    def test_get_video_bitrate(self):
-        v_path = "videos/test.mp4"
-        expected_bitrate = 1423.64
-        self.assertEqual(get_video_bitrate(v_path), expected_bitrate)
-
-    def test_get_original_codecs(self):
-        v_path = "videos/test.mp4"
-        expected_codecs = ('hevc', 'aac')
-        self.assertEqual(get_original_codecs(v_path), expected_codecs)
-
-    def test_not_a_video(self):
-        v_path = "videos/not_a_video.wav"
-        self.assertFalse(is_video(v_path))
+V_PATH = str(VIDEOS / "1.mp4")  # values below measured with ffprobe
 
 
-if __name__ == "__main__":
-    unittest.main()
+def test_file_exists():
+    assert (VIDEOS / "1.mp4").exists()
+
+
+@pytest.mark.ffmpeg
+def test_get_video_duration():
+    assert get_video_duration(V_PATH) == pytest.approx(10.0415, abs=1e-3)
+
+
+@pytest.mark.ffmpeg
+def test_get_resolution():
+    assert get_resolution(V_PATH) == (1920, 1080)
+
+
+@pytest.mark.ffmpeg
+def test_get_video_bitrate():
+    assert get_video_bitrate(V_PATH) == pytest.approx(9048.38, abs=0.01)
+
+
+@pytest.mark.ffmpeg
+def test_get_original_codecs():
+    assert get_original_codecs(V_PATH) == ("h264", "aac")
+
+
+def test_not_a_video():
+    assert not is_video(str(VIDEOS / "not_a_video.wav"))
