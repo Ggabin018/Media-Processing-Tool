@@ -1,5 +1,4 @@
 import os
-import os
 import subprocess
 import sys
 import tempfile
@@ -8,6 +7,17 @@ import ffmpeg
 
 from toolbox.progress_bar import progress_bar
 from toolbox.utils import to_seconds
+
+
+def run_ffmpeg(output) -> None:
+    """
+    Run an ffmpeg command and wait for it to finish (stdin closed, so it never waits for a key).
+    :raise ffmpeg.Error: if ffmpeg fails
+    """
+    args = ffmpeg.compile(output)
+    process = subprocess.run(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+    if process.returncode != 0:
+        raise ffmpeg.Error(args[0], b"", process.stderr[-2000:])
 
 
 def is_video(path: str) -> bool:
@@ -154,7 +164,7 @@ def video_cut(input_video: str, start=None, end=None) -> str:
 
         output = ffmpeg.overwrite_output(stream)
 
-        ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
+        run_ffmpeg(output)
 
         return output_video
 
@@ -194,7 +204,7 @@ def video_upscale(input_video: str, factor: int) -> str:
         output = ffmpeg.output(video, audio, output_video, acodec='copy')
         output = ffmpeg.overwrite_output(output)
 
-        ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
+        run_ffmpeg(output)
 
         return output_video
 
@@ -312,7 +322,7 @@ def videos_concat(videos: list[str]) -> str:
                                vcodec="libx264", acodec="aac", video_bitrate=f"{get_video_bitrate(videos[0])}k" ,audio_bitrate="192K")
         output = ffmpeg.overwrite_output(output)
 
-        ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
+        run_ffmpeg(output)
         return output_video
 
     except Exception as e:
