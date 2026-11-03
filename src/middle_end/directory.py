@@ -6,40 +6,37 @@ from back_end.dir_manip import (
     dir_compress_videos, compress_videos_dossier_parent
 )
 
-from toolbox.utils import regularize_path
+from toolbox.paths import require_dir
+from toolbox.wrapper import exception_as_str
 
+
+@exception_as_str()
 def directory_media2media(video_dir_path: str, ext: str) -> str:
-    try:
-        return dir_convert_media(regularize_path(video_dir_path), ext)
-    except Exception as e:
-        return f"Error: {str(e)}"
+    return dir_convert_media(require_dir(video_dir_path), ext)
 
 
+@exception_as_str()
 def directory_audio_modify(video_dir_path: str, audio_dir_path: str, opt: str = "replace", randomize: bool = True) -> str:
-    try:
-        if opt == "replace":
-            return dir_audio_replace(video_dir_path, audio_dir_path, randomize)
-        return dir_audio_combine(video_dir_path, audio_dir_path, randomize)
-    except Exception as e:
-        return f"Error: {str(e)}"
+    video_dir_path = require_dir(video_dir_path)
+    audio_dir_path = require_dir(audio_dir_path)
+    if opt == "replace":
+        return dir_audio_replace(video_dir_path, audio_dir_path, randomize)
+    return dir_audio_combine(video_dir_path, audio_dir_path, randomize)
 
 
+@exception_as_str()
 def directory_convert(dir_path: str, ext: str) -> str:
-    try:
-        return dir_convert_video_to_video(dir_path, ext)
-    except Exception as e:
-        return f"Error: {str(e)}"
+    return dir_convert_video_to_video(require_dir(dir_path), ext)
 
 
+@exception_as_str()
 def directory_compress(dir_path: str, bitrate: int = 8000, min_res: str = "1080", vcodec="hevc_nvenc") -> str:
-    try:
-        return dir_compress_videos(dir_path, bitrate, int(min_res), vcodec)
-    except Exception as e:
-        return f"Error: {str(e)}"
+    return dir_compress_videos(require_dir(dir_path), bitrate, int(min_res), vcodec)
+
 
 def pdirectory_compress(dir_path: str, bitrate: int = 8000, min_res: str = "1080", vcodec="hevc_nvenc") -> None:
+    """No Gradio output: errors are printed in the console."""
     try:
-        return compress_videos_dossier_parent(dir_path, bitrate, int(min_res), vcodec)
+        compress_videos_dossier_parent(require_dir(dir_path), bitrate, int(min_res), vcodec)
     except Exception as e:
-        print(f"Error: {str(e)}")
-        return None
+        print(f"Error: {e}")

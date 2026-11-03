@@ -2,7 +2,9 @@ import os
 import shutil
 import tempfile
 
-from toolbox.utils import regularize_path, to_seconds
+from toolbox.utils import to_seconds
+from toolbox.paths import require_file
+from toolbox.wrapper import exception_as_str
 from back_end.video_manip import video_cut, video_compress, is_video, multiple_cuts_plus_concatenate
 from back_end.audio_manip import audio_replace, audio_combine
 from back_end.media_converter import convert_media
@@ -11,6 +13,7 @@ temp_file = None
 
 
 def make_temp_copy(src_path: str) -> str | None:
+    """Small copy for the Gradio preview. Optional: returns None on any error."""
     global temp_file
     try:
         _, file_extension = os.path.splitext(src_path)
@@ -25,71 +28,63 @@ def make_temp_copy(src_path: str) -> str | None:
         return None
 
 
+@exception_as_str(2)
 def cut_video(video_path: str, start: str | None, end: str | None) -> tuple[str, str | None]:
-    video_path = regularize_path(video_path)
-    if not os.path.exists(video_path):
-        return f"{video_path} does not exit", None
-
-    path = video_cut(video_path, start=start, end=end)
+    path = video_cut(require_file(video_path), start=start, end=end)
     return path, make_temp_copy(path)
 
 
+@exception_as_str(3)
 def convert_media_to_media(video_path: str, ext: str) -> tuple[str, str | None, str | None]:
-    try:
-        path = convert_media(regularize_path(video_path), ext)
-        if ext in ["mp4", "mov", "avi", "webm", "mkv"]:
-            return path, make_temp_copy(path), None
-        return path, None, make_temp_copy(path)
-    except Exception as e:
-        return f"Error: {str(e)}", None, None
+    """:returns: result text, video preview, audio preview"""
+    path = convert_media(require_file(video_path), ext)
+    if ext in ["mp4", "mov", "avi", "webm", "mkv"]:
+        return path, make_temp_copy(path), None
+    return path, None, make_temp_copy(path)
 
 
+@exception_as_str(2)
 def modify_audio(video_path: str, audio_path: str, opt: str = "replace") -> tuple[str, str | None]:
-    try:
-        if opt == "replace":
-            path = audio_replace(regularize_path(video_path), regularize_path(audio_path))
-        else:
-            path = audio_combine(regularize_path(video_path), regularize_path(audio_path))
-        return path, make_temp_copy(path)
-    except Exception as e:
-        return f"Error: {str(e)}", None
+    video_path = require_file(video_path)
+    audio_path = require_file(audio_path)
+    if opt == "replace":
+        path = audio_replace(video_path, audio_path)
+    else:
+        path = audio_combine(video_path, audio_path)
+    return path, make_temp_copy(path)
 
 
-def compress_vid(video_path: str, bitrate: int = 8000, min_res: str = 1080, vcodec: str = "hevc_nvenc"):
-    try:
-        path = video_compress(video_path, target_bitrate=bitrate, min_resolution=int(min_res), vcodec=vcodec)
-        return path
-    except Exception as e:
-        return f"Error: {str(e)}", None
+@exception_as_str()
+def compress_vid(video_path: str, bitrate: int = 8000, min_res: str = "1080", vcodec: str = "hevc_nvenc") -> str:
+    return video_compress(require_file(video_path), target_bitrate=bitrate, min_resolution=int(min_res),
+                          vcodec=vcodec)
 
 
-def parse_input(input_str: str) -> list[str]:
-    lines = input_str.splitlines()
+def parse_input(input_str: str | None) -> list[str]:
+    """One time per line (seconds or HH:MM:SS). Empty lines are ignored."""
+    lines = [line.strip() for line in (input_str or "").splitlines() if line.strip()]
     for line in lines:
-        try:
-            to_seconds(line)
-        except Exception:
-            raise Exception(f"Error: {line}")
-
+        if to_seconds(line) is None:
+            raise ValueError(f"invalid time {line!r}")
     return lines
 
+
+@exception_as_str(2)
 def cut_and_concate(video_path: str, input_start: str, input_end: str) -> tuple[str, str | None]:
-    try:
-        video_path = regularize_path(video_path)
-        if not os.path.exists(video_path):
-            return f"{video_path} does not exit", None
+    video_path = require_file(video_path)
 
-        starts = parse_input(input_start)
-        ends = parse_input(input_end)
+    starts = parse_input(input_start)
+    ends: list[str | None] = parse_input(input_end)
 
-        if len(ends) + 1 == len(starts):
-            ends.append(None)
+    if not starts:
+        raise ValueError("no start time")
 
-        if len(starts) != len(ends):
-            raise Exception(f"Error: starts={len(starts)} != ends={len(ends)}")
+    # last segment can go to the end of the video
+    if len(ends) + 1 == len(starts):
+        ends.append(None)
 
-        path = multiple_cuts_plus_concatenate(video_path, list(zip(starts, ends)))
-        return path, make_temp_copy(path)
+    if len(starts) != len(ends):
+        raise ValueError(f"starts={len(starts)} != ends={len(ends)}")
 
-    except Exception as e:
-        return f"Error: {e}", None
+    path = multiple_cuts_plus_concatenate(video_path, list(zip(starts, ends)))
+    return path, make_temp_copy(path)

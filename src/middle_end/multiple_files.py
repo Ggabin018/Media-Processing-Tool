@@ -7,61 +7,50 @@ from back_end.files_manip import (
 )
 from back_end.video_manip import videos_concat
 
-from toolbox.utils import get_correct_files
+from toolbox.paths import clean_file_list
+from toolbox.wrapper import exception_as_str
 
 
-def batch_convert_video_to_video(videos: list[str], ext: str) -> str:
-    try:
-        videos = get_correct_files(videos)
-        if not videos:
-            return "No provided videos"
-        path = files_convert_video_to_video(videos, ext)
-        return path
-    except Exception as e:
-        return f"Error: {str(e)}"
+@exception_as_str()
+def batch_convert_video_to_video(videos: list, ext: str) -> str:
+    videos = clean_file_list(videos)
+    if not videos:
+        return "No provided videos"
+    return files_convert_video_to_video(videos, ext)
 
 
-def batch_modify_audio(videos: list[str], audios: list[str], opt: str = "replace", randomize: bool = True) -> str:
-    try:
-        videos = get_correct_files(videos)
-        if not videos:
-            return "No provided videos"
-        audios = get_correct_files(audios)
-        if not audios:
-            return "No provided audios"
-        if opt == "replace":
-            paths = files_audio_replace(videos, audios, randomize)
-        else:
-            paths = files_audio_combine(videos, audios, randomize)
-        return paths
-    except Exception as e:
-        return f"Error: {str(e)}"
+@exception_as_str()
+def batch_modify_audio(videos: list, audios: list, opt: str = "replace", randomize: bool = True) -> str:
+    videos = clean_file_list(videos)
+    if not videos:
+        return "No provided videos"
+    audios = clean_file_list(audios)
+    if not audios:
+        return "No provided audios"
+    if opt == "replace":
+        return files_audio_replace(videos, audios, randomize)
+    return files_audio_combine(videos, audios, randomize)
 
 
-def batch_compress(videos: list[str], bitrate, min_res, vcodec) -> str:
-    try:
-        videos = get_correct_files(videos)
-        if not videos:
-            return "No provided videos"
-        return files_compress_videos(videos, bitrate, min_res, vcodec)
-    except Exception as e:
-        return f"Error: {str(e)}"
+@exception_as_str()
+def batch_compress(videos: list, bitrate, min_res, vcodec) -> str:
+    videos = clean_file_list(videos)
+    if not videos:
+        return "No provided videos"
+    return files_compress_videos(videos, bitrate, min_res, vcodec)
 
 
-def batch_convert(medias: list[str], ext: str) -> str:
-    try:
-        medias = get_correct_files(medias)
-        if not medias:
-            return "No provided medias"
-        return files_convert(medias, ext)
-    except Exception as e:
-        return f"Error: {str(e)}"
+@exception_as_str()
+def batch_convert(medias: list, ext: str) -> str:
+    medias = clean_file_list(medias)
+    if not medias:
+        return "No provided medias"
+    return files_convert(medias, ext)
 
-def batch_concat(videos: list[str]) -> str:
-    try:
-        videos = get_correct_files(videos)
-        if not videos:
-            return "No provided videos"
-        return videos_concat(videos)
-    except Exception as e:
-        return f"Error: {str(e)}"
+
+@exception_as_str()
+def batch_concat(videos: list) -> str:
+    videos = clean_file_list(videos)
+    if not videos:
+        return "No provided videos"
+    return videos_concat(videos)
