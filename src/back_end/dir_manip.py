@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 from back_end.audio_manip import audio_combine, audio_replace, is_audio
 from back_end.video_manip import video_compress, is_video
 from back_end.media_converter import convert_media
-from toolbox.Parameters import Params
+from toolbox.parameters import Params
 
 params = Params()
 

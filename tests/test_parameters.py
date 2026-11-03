@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from toolbox.Parameters import Params
+from toolbox.parameters import Params
 
 class TestParams(unittest.TestCase):
     def test_file_exists(self):

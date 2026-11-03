@@ -6,7 +6,7 @@ import tempfile
 
 import ffmpeg
 
-from toolbox.ProgressBar import progress_bar
+from toolbox.progress_bar import progress_bar
 from toolbox.utils import to_seconds
 
 

@@ -1,7 +1,7 @@
 import os
 import ffmpeg
 
-from toolbox.ProgressBar import progress_bar
+from toolbox.progress_bar import progress_bar
 
 def get_media_duration(path: str) -> float | str:
     """
