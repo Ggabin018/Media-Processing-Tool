@@ -1,97 +1,45 @@
 import random
-from concurrent.futures import ThreadPoolExecutor
 
 from back_end.audio_manip import audio_combine, audio_replace
 from back_end.video_manip import video_compress
 from back_end.media_converter import convert_media
 
-from toolbox.parameters import Params
+from toolbox.progress import task_name
+from toolbox.threads import map_in_threads
 
-params = Params()
+
+def pick_audios(videos: list[str], audios: list[str], randomize: bool) -> list[str]:
+    """One audio per video: random, or in order (looping over the audios)."""
+    if not audios:
+        raise ValueError("No audio files")
+    if randomize:
+        return [random.choice(audios) for _ in videos]
+    return [audios[i % len(audios)] for i in range(len(videos))]
+
 
 def files_compress_videos(files: list[str], bitrate, min_res, vcodec) -> str:
-    """
-    compress all videos in a subdir output
-    """
-    res = []
-
-    def process_file(file):
-        res.append(video_compress(file, target_bitrate=bitrate, min_resolution=min_res, vcodec=vcodec))
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, files)
-
-    return '\n'.join(res)
+    """Compress every video next to the original (__compressed.mp4)."""
+    return '\n'.join(map_in_threads(
+        lambda f: video_compress(f, target_bitrate=bitrate, min_resolution=int(min_res), vcodec=vcodec), files))
 
 
 def files_convert(files: list[str], ext: str) -> str:
-    """
-    Convert media files (video or audio) to another format
-    """
-    res = []
-
-    def process_file(file):
-        res.append(convert_media(file, ext))
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, files)
-
-    return '\n'.join(res)
+    """Convert media files (video or audio) to another format."""
+    return '\n'.join(map_in_threads(lambda f: convert_media(f, ext), files))
 
 
 def files_audio_combine(videos: list[str], audios: list[str], randomize: bool) -> str:
-    """
-    combine les vidéos et leurs audios avec les audios d'un autre dossier
-    """
-    res = []
-    n_audios = len(audios)
-    i = 0
-
-    def process_file(file):
-        nonlocal i
-        if randomize:
-            audio_to_combine = random.choice(audios)
-        else:
-            audio_to_combine = audios[i]
-            i = (i + 1) % n_audios
-        res.append(audio_combine(file, audio_to_combine))
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, videos)
-
-    return '\n'.join(res)
+    """Mix an audio file into each video."""
+    pairs = list(zip(videos, pick_audios(videos, audios, randomize)))
+    return '\n'.join(map_in_threads(lambda p: audio_combine(*p), pairs, name=lambda p: task_name(p[0])))
 
 
 def files_audio_replace(videos: list[str], audios: list[str], randomize: bool) -> str:
-    """
-    replace audios of files with compression
-    """
-    res = []
-    n_audios = len(audios)
-    i = 0
-
-    def process_file(file):
-        nonlocal i
-        if randomize:
-            audio_to_combine = random.choice(audios)
-        else:
-            audio_to_combine = audios[i]
-            i = (i + 1) % n_audios
-        res.append(audio_replace(file, audio_to_combine))
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, videos)
-
-    return '\n'.join(res)
+    """Replace the audio of each video."""
+    pairs = list(zip(videos, pick_audios(videos, audios, randomize)))
+    return '\n'.join(map_in_threads(lambda p: audio_replace(*p), pairs, name=lambda p: task_name(p[0])))
 
 
 def files_convert_video_to_video(videos: list[str], ext: str) -> str:
-    res = []
+    return '\n'.join(map_in_threads(lambda f: convert_media(f, ext), videos))
 
-    def process_file(file):
-        res.append(convert_media(file, ext))
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, videos)
-
-    return '\n'.join(res)

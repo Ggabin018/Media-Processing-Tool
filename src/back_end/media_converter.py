@@ -1,7 +1,7 @@
 import os
 import ffmpeg
 
-from toolbox.progress_bar import progress_bar
+from toolbox.ffmpeg_runner import run_ffmpeg
 
 def get_media_duration(path: str) -> float | str:
     """
@@ -72,23 +72,12 @@ def convert_media(input_path: str, ext: str) -> str:
         # Common settings
         output_args['pix_fmt'] = 'yuv420p'  # Standard pixel format
 
-        # Add progress monitoring
-        output_args['stats'] = None
-        output_args['progress'] = 'pipe:1'
-
         # Build and run the command
         output = ffmpeg.output(input_stream, output_path, **output_args)
         output = ffmpeg.overwrite_output(output)
 
-        process = ffmpeg.run_async(output, pipe_stdout=True)
-        progress_bar(duration, process)
-        return_code = process.wait()
-
-        if return_code == 0:
-            print(f"\nConversion completed successfully")
-            return output_path
-        else:
-            return f"\nConversion failed with return code {return_code}"
+        run_ffmpeg(output, duration=duration, desc=f"Convert {os.path.basename(input_path)}")
+        return output_path
 
     except ffmpeg.Error as e:
         error_message = e.stderr.decode() if hasattr(e.stderr, 'decode') else str(e.stderr)

@@ -1,23 +1,14 @@
 import os
-import subprocess
-import sys
-import tempfile
 
 import ffmpeg
 
-from toolbox.progress_bar import progress_bar
+from toolbox.ffmpeg_runner import run_ffmpeg
 from toolbox.utils import to_seconds
 
 
-def run_ffmpeg(output) -> None:
-    """
-    Run an ffmpeg command and wait for it to finish (stdin closed, so it never waits for a key).
-    :raise ffmpeg.Error: if ffmpeg fails
-    """
-    args = ffmpeg.compile(output)
-    process = subprocess.run(args, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
-    if process.returncode != 0:
-        raise ffmpeg.Error(args[0], b"", process.stderr[-2000:])
+def _duration_or_none(video_path: str) -> float | None:
+    duration = get_video_duration(video_path)
+    return duration if isinstance(duration, float) else None
 
 
 def is_video(path: str) -> bool:
@@ -164,12 +155,17 @@ def video_cut(input_video: str, start=None, end=None) -> str:
 
         output = ffmpeg.overwrite_output(stream)
 
-        run_ffmpeg(output)
+        if end:
+            expected = end - (start or 0)
+        else:
+            total = _duration_or_none(input_video)
+            expected = total - (start or 0) if total else None
+        run_ffmpeg(output, duration=expected, desc=f"Cut {os.path.basename(input_video)}")
 
         return output_video
 
-    except ffmpeg.Error as e:
-        return f"ffmpeg error: {e.stderr}"
+    except Exception as e:
+        return f"Error: {e}"
 
 
 def video_upscale(input_video: str, factor: int) -> str:
@@ -204,7 +200,7 @@ def video_upscale(input_video: str, factor: int) -> str:
         output = ffmpeg.output(video, audio, output_video, acodec='copy')
         output = ffmpeg.overwrite_output(output)
 
-        run_ffmpeg(output)
+        run_ffmpeg(output, duration=_duration_or_none(input_video), desc=f"Upscale {os.path.basename(input_video)}")
 
         return output_video
 
@@ -264,25 +260,12 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
             video_bitrate=f'{target_bitrate}k',
             acodec='copy',
             pix_fmt='yuv420p',
-            **{'stats': None, 'progress': 'pipe:1'}  # Force progress output
         )
 
         output = ffmpeg.overwrite_output(output)
 
-        print(f"Compressing {os.path.basename(video_path)} to {os.path.basename(output_filename)}")
-        process = ffmpeg.run_async(output, pipe_stdout=True, pipe_stdin=subprocess.DEVNULL)
-
-        progress_bar(duration, process)
-
-        # Wait for process to finish
-        return_code = process.wait()
-
-        if return_code == 0:
-            sys.stdout.write("\n")
-            print(f"Compression completed successfully")
-            return output_filename
-        else:
-            return f"\nCompression failed with return code {return_code}"
+        run_ffmpeg(output, duration=duration, desc=f"Compress {os.path.basename(video_path)}")
+        return output_filename
 
     except ffmpeg.Error as e:
         return f"ffmpeg error: {e.stderr.decode() if hasattr(e.stderr, 'decode') else e.stderr}"
@@ -322,7 +305,9 @@ def videos_concat(videos: list[str]) -> str:
                                vcodec="libx264", acodec="aac", video_bitrate=f"{get_video_bitrate(videos[0])}k" ,audio_bitrate="192K")
         output = ffmpeg.overwrite_output(output)
 
-        run_ffmpeg(output)
+        durations = [_duration_or_none(v) for v in videos]
+        expected = sum(durations) if all(durations) else None
+        run_ffmpeg(output, duration=expected, desc=f"Concat {len(videos)} videos")
         return output_video
 
     except Exception as e:

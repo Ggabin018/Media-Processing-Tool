@@ -141,22 +141,28 @@ def run_task(name: str, fn: Callable, *args, **kwargs):
     Run one task (one file) on the current board: pending -> running -> done/error.
     Exceptions are turned into "Error: ..." strings. Works without a board too.
     """
+    board_token = current_board.set(ProgressBoard()) if current_board.get() is None else None
+    try:
+        key = current_board.get().add([name])[0]
+        return run_registered(key, fn, *args, **kwargs)
+    finally:
+        if board_token is not None:
+            current_board.reset(board_token)
+
+
+def run_registered(key: str, fn: Callable, *args, **kwargs):
+    """Same as run_task, for a task already added to the current board."""
     board = current_board.get()
-    board_token = current_board.set(ProgressBoard()) if board is None else None
-    board = current_board.get()
-    key = board.add([name])[0]
     token = current_task.set(key)
     board.start(key)
     try:
         result = fn(*args, **kwargs)
     except Exception as e:
-        result = f"Error: {name}: {e}"
+        result = f"Error: {key}: {e}"
     finally:
         current_task.reset(token)
-        if board_token is not None:
-            current_board.reset(board_token)
     ok = is_success(result)
-    board.finish(key, ok, "" if ok else _short_error(first_line(result), name))
+    board.finish(key, ok, "" if ok else _short_error(first_line(result), key))
     return result
 
 

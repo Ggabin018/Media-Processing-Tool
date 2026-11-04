@@ -1,18 +1,23 @@
 import os
 import random
-from concurrent.futures import ThreadPoolExecutor
 
 from back_end.audio_manip import audio_combine, audio_replace, is_audio
 from back_end.video_manip import video_compress, is_video
 from back_end.media_converter import convert_media
-from toolbox.parameters import Params
+from back_end.files_manip import pick_audios
+from toolbox.progress import task_name
+from toolbox.threads import map_in_threads
 
-params = Params()
+
+def _list(dir_path: str, keep) -> list[str]:
+    """Files of a directory (not recursive) kept by `keep(name)`, sorted, as full paths."""
+    return [os.path.join(dir_path, f) for f in sorted(os.listdir(dir_path))
+            if keep(f) and os.path.isfile(os.path.join(dir_path, f))]
 
 
 def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080, vcodec: str = "hevc_nvenc") -> str:
     """
-    compress all videos in a subdir output
+    compress all videos of a directory into its "output" subdirectory
     :param dir_path: chemin absolue du dossier
     :param bitrate: bitrate in kbps (default: 8000)
     :param min_res: minimum resolution
@@ -20,121 +25,61 @@ def dir_compress_videos(dir_path: str, bitrate: int = 8000, min_res: int = 1080,
     """
     output_folder = os.path.join(dir_path, "output")
     os.makedirs(output_folder, exist_ok=True)
-    video_files = []
-    for fichier in os.listdir(dir_path):
-        video_path = os.path.join(dir_path, fichier)
-        if is_video(video_path):
-            video_files.append(video_path)
-
-    res = []
+    videos = _list(dir_path, is_video)
 
     def process_file(file):
         output_file = os.path.join(output_folder, os.path.basename(file))
-        res.append(video_compress(file, output_file, bitrate, min_res, vcodec))
+        return video_compress(file, output_file, bitrate, min_res, vcodec)
 
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, video_files)
-
-    return '\n'.join(res)
+    return '\n'.join(map_in_threads(process_file, videos))
 
 
-def compress_videos_dossier_parent(parent_dir: str, bitrate: int, min_res: int, vcodec: str):
+def compress_videos_dossier_parent(parent_dir: str, bitrate: int, min_res: int, vcodec: str) -> str:
     """
-    use convertir_videos_dossier sur ses sous-dossiers
+    dir_compress_videos on every direct subdirectory
     :param parent_dir: chemin abs dossier parent
     :param bitrate: bitrate in kbps (default: 8000)
     :param min_res: minimum resolution
     :param vcodec: video codec
     """
-    try:
-        # Just subdir, no recursive
-        for child_dir in os.listdir(parent_dir):
-            child_dir_path = os.path.join(parent_dir, child_dir)
-
-            if os.path.isdir(child_dir_path):
-                dir_compress_videos(child_dir_path, bitrate, min_res, vcodec)
-    except Exception as e:
-        print(f"Error : {str(e)}")
+    res = []
+    for child_dir in sorted(os.listdir(parent_dir)):
+        child_dir_path = os.path.join(parent_dir, child_dir)
+        if os.path.isdir(child_dir_path) and child_dir != "output":
+            res.append(dir_compress_videos(child_dir_path, bitrate, min_res, vcodec))
+    return '\n'.join(r for r in res if r)
 
 
 def dir_convert_media(videos_dir: str, ext: str) -> str:
     """
-    extrait les audios des vidéos
+    convert every mp4 of a directory (e.g. extract audio)
     :param videos_dir: dossier contenant les vidéos
     :param ext: file extension
     """
-    res = []
-
-    def process_file(file):
-        path_mp4 = os.path.join(videos_dir, file)
-        res.append(convert_media(path_mp4, ext))
-
-    files = [file for file in os.listdir(videos_dir) if file.lower().endswith(".mp4")]
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, files)
-
-    return '\n'.join(res)
+    files = _list(videos_dir, lambda f: f.lower().endswith(".mp4"))
+    return '\n'.join(map_in_threads(lambda f: convert_media(f, ext), files))
 
 
 def dir_audio_combine(videos_dir: str, audio_dir: str, randomize: bool) -> str:
     """
-    combine les vidéos et leurs audios avec les audios d'un autre dossier
+    mix an audio of audio_dir into every video of videos_dir
     :param videos_dir: dossier contenant les vidéos
     :param audio_dir: dossier contenant les audios à superposer
     """
-    res = []
-    audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if is_audio(file)]
-    n_audios = len(audio_list)
-    i = 0
-
-    def process_file(file):
-        nonlocal i
-        if randomize:
-            audio_to_combine = random.choice(audio_list)
-        else:
-            audio_to_combine = audio_list[i]
-            i = (i + 1) % n_audios
-        path_mp4 = os.path.join(videos_dir, file)
-        res.append(audio_combine(path_mp4, audio_to_combine))
-
-    files = [file for file in os.listdir(videos_dir) if is_video(file)]
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, files)
-
-    return '\n'.join(res)
+    videos = _list(videos_dir, is_video)
+    pairs = list(zip(videos, pick_audios(videos, _list(audio_dir, is_audio), randomize)))
+    return '\n'.join(map_in_threads(lambda p: audio_combine(*p), pairs, name=lambda p: task_name(p[0])))
 
 
 def dir_audio_replace(videos_dir: str, audio_dir: str, randomize: bool) -> str:
     """
-    combine les vidéos et leurs audios avec les audios d'un autre dossier
-    replace audio with compression
+    replace the audio of every video of videos_dir by an audio of audio_dir
     :param videos_dir: dossier contenant les vidéos
     :param audio_dir: dossier contenant les audios à superposer
     """
-    res = []
-    i = 0
-    audio_list = [os.path.join(audio_dir, file) for file in os.listdir(audio_dir) if is_audio(file)]
-    n_audios = len(audio_list)
-
-    def process_file(file):
-        nonlocal i
-        if randomize:
-            audio_to_combine = random.choice(audio_list)
-        else:
-            audio_to_combine = audio_list[i]
-            i = (i + 1) % n_audios
-
-        path_mp4 = os.path.join(videos_dir, file)
-        res.append(audio_replace(path_mp4, audio_to_combine))
-
-    files = [file for file in os.listdir(videos_dir) if is_video(file)]
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, files)
-
-    return '\n'.join(res)
+    videos = _list(videos_dir, is_video)
+    pairs = list(zip(videos, pick_audios(videos, _list(audio_dir, is_audio), randomize)))
+    return '\n'.join(map_in_threads(lambda p: audio_replace(*p), pairs, name=lambda p: task_name(p[0])))
 
 
 def dir_audio_replace_no_thread(videos_dir, audio_dir) -> str:
@@ -179,17 +124,5 @@ def rename_files(input_dir: str):
 
 
 def dir_convert_video_to_video(videos_dir: str, ext: str) -> str:
-    res = []
-    files = [os.path.join(videos_dir, file) for file in os.listdir(videos_dir) if
-             file.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.webm'))]
-
-    def process_file(file):
-        res.append(convert_media(file, ext))
-
-    with ThreadPoolExecutor(max_workers=params.get_max_workers()) as executor:
-        executor.map(process_file, files)
-
-    return '\n'.join(res)
-
-if __name__ == '__main__':
-    compress_videos_dossier_parent(r"E:\Downloads\_DONE")
+    files = _list(videos_dir, lambda f: f.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.webm')))
+    return '\n'.join(map_in_threads(lambda f: convert_media(f, ext), files))
