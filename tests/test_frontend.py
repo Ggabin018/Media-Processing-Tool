@@ -50,17 +50,49 @@ def test_file_pickers_write_back_into_their_field(handlers):
         assert isinstance(bf.outputs[0], (gr.Textbox, gr.Dataframe)), name(bf)
 
 
-def test_middle_end_handlers_match_gradio_outputs(handlers):
-    # with empty fields every middle_end handler must answer with as many values as outputs, never raise
+def middle_end_handlers(handlers):
     middle = [bf for bf in handlers if bf.fn.__module__.startswith("middle_end")]
     assert middle
-    for bf in middle:
-        result = bf.fn(*[empty_value(c) for c in bf.inputs])
-        n = len(bf.outputs)
-        if n == 0:
-            assert result is None, name(bf)
-        elif n == 1:
-            assert isinstance(result, str), f"{name(bf)} returned {result!r}"
+    return middle
+
+
+def test_middle_end_handlers_stream_into_one_result(handlers):
+    # with empty fields every handler streams text into its single Result field and never raises
+    for bf in middle_end_handlers(handlers):
+        assert len(bf.outputs) == 1 and isinstance(bf.outputs[0], gr.Textbox), name(bf)
+        assert inspect.isgeneratorfunction(inspect.unwrap(bf.fn)), f"{name(bf)} is not a generator"
+        values = list(bf.fn(*[empty_value(c) for c in bf.inputs], progress=None))
+        assert values and all(isinstance(v, str) for v in values), f"{name(bf)} yielded {values!r}"
+
+
+def test_middle_end_handlers_get_gradio_progress(handlers):
+    for bf in middle_end_handlers(handlers):
+        param = inspect.signature(bf.fn).parameters.get("progress")
+        assert param is not None and isinstance(param.default, gr.Progress), name(bf)
+
+
+def test_heavy_jobs_share_one_queue(handlers):
+    for bf in middle_end_handlers(handlers):
+        assert bf.concurrency_id == "ffmpeg" and bf.concurrency_limit == 1, name(bf)
+    for bf in handlers:
+        if not bf.fn.__module__.startswith("middle_end"):
+            assert bf.concurrency_id != "ffmpeg", f"{name(bf)} should not wait behind ffmpeg jobs"
+
+
+def test_no_media_preview_anymore(handlers):
+    for bf in handlers:
+        assert not any(isinstance(c, (gr.Video, gr.Audio)) for c in bf.outputs), name(bf)
+
+
+def test_open_buttons_read_a_result_or_directory_field(handlers):
+    openers = [bf for bf in handlers if bf.fn.__name__ in ("open_result_file", "open_result_folder", "open_directory")]
+    results = {id(c) for bf in middle_end_handlers(handlers) for c in bf.outputs}
+    path_inputs = {id(c) for bf in middle_end_handlers(handlers) for c in bf.inputs if isinstance(c, gr.Textbox)}
+    assert len([bf for bf in openers if bf.fn.__name__ != "open_directory"]) >= 2 * 6  # 5 Single tabs + concat
+    for bf in openers:
+        assert len(bf.inputs) == 1 and not bf.outputs, name(bf)
+        source = id(bf.inputs[0])
+        if bf.fn.__name__ == "open_directory":
+            assert source in path_inputs, name(bf)
         else:
-            assert isinstance(result, tuple) and len(result) == n, f"{name(bf)} returned {result!r} for {n} outputs"
-            assert isinstance(result[0], str), name(bf)
+            assert source in results, name(bf)

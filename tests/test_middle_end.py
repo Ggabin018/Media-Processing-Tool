@@ -1,9 +1,11 @@
 """
 The middle_end is the guard between Gradio and the back-end:
 - it cleans every path (quotes, spaces, slashes) before the back-end sees it,
-- it never raises: errors come back as "Error: ..." with as many values as Gradio outputs.
+- it never raises: errors come back as "Error: ..." in the Result field,
+- its handlers are generators: live progress board, then the result (last value).
 Back-end functions are mocked: no ffmpeg needed.
 """
+import inspect
 import os
 from dataclasses import dataclass
 from typing import Callable
@@ -19,10 +21,6 @@ class Entry:
     func: str
     backend: str  # back-end function mocked in the module namespace
     make_args: Callable  # (raw_path_fn, files) -> args
-    n_outputs: int  # number of Gradio outputs
-
-    def __str__(self):
-        return self.func
 
 
 def rows(*paths):
@@ -31,35 +29,35 @@ def rows(*paths):
 
 ENTRIES = [
     # Single file
-    Entry(single_file, "cut_video", "video_cut", lambda r, f: (r(f["video"]), "1", "3"), 2),
-    Entry(single_file, "convert_media_to_media", "convert_media", lambda r, f: (r(f["video"]), "mp3"), 3),
-    Entry(single_file, "modify_audio", "audio_replace", lambda r, f: (r(f["video"]), r(f["audio"]), "replace"), 2),
-    Entry(single_file, "modify_audio", "audio_combine", lambda r, f: (r(f["video"]), r(f["audio"]), "combine"), 2),
-    Entry(single_file, "compress_vid", "video_compress", lambda r, f: (r(f["video"]), "8000", "1080", "libx264"), 1),
+    Entry(single_file, "cut_video", "video_cut", lambda r, f: (r(f["video"]), "1", "3")),
+    Entry(single_file, "convert_media_to_media", "convert_media", lambda r, f: (r(f["video"]), "mp3")),
+    Entry(single_file, "modify_audio", "audio_replace", lambda r, f: (r(f["video"]), r(f["audio"]), "replace")),
+    Entry(single_file, "modify_audio", "audio_combine", lambda r, f: (r(f["video"]), r(f["audio"]), "combine")),
+    Entry(single_file, "compress_vid", "video_compress", lambda r, f: (r(f["video"]), "8000", "1080", "libx264")),
     Entry(single_file, "cut_and_concate", "multiple_cuts_plus_concatenate",
-          lambda r, f: (r(f["video"]), "0\n4", "2\n6"), 2),
+          lambda r, f: (r(f["video"]), "0\n4", "2\n6")),
     # Directory
-    Entry(directory, "directory_media2media", "dir_convert_media", lambda r, f: (r(f["vdir"]), "mp3"), 1),
+    Entry(directory, "directory_media2media", "dir_convert_media", lambda r, f: (r(f["vdir"]), "mp3")),
     Entry(directory, "directory_audio_modify", "dir_audio_replace",
-          lambda r, f: (r(f["vdir"]), r(f["adir"]), "replace", False), 1),
+          lambda r, f: (r(f["vdir"]), r(f["adir"]), "replace", False)),
     Entry(directory, "directory_audio_modify", "dir_audio_combine",
-          lambda r, f: (r(f["vdir"]), r(f["adir"]), "combine", False), 1),
-    Entry(directory, "directory_convert", "dir_convert_video_to_video", lambda r, f: (r(f["vdir"]), "mp4"), 1),
+          lambda r, f: (r(f["vdir"]), r(f["adir"]), "combine", False)),
+    Entry(directory, "directory_convert", "dir_convert_video_to_video", lambda r, f: (r(f["vdir"]), "mp4")),
     Entry(directory, "directory_compress", "dir_compress_videos",
-          lambda r, f: (r(f["vdir"]), "8000", "1080", "libx264"), 1),
+          lambda r, f: (r(f["vdir"]), "8000", "1080", "libx264")),
     Entry(directory, "pdirectory_compress", "compress_videos_dossier_parent",
-          lambda r, f: (r(f["vdir"]), "8000", "1080", "libx264"), 0),
+          lambda r, f: (r(f["vdir"]), "8000", "1080", "libx264")),
     # Multiple files
     Entry(multiple_files, "batch_convert_video_to_video", "files_convert_video_to_video",
-          lambda r, f: (rows(r(f["video"]), r(f["video2"])), "mkv"), 1),
+          lambda r, f: (rows(r(f["video"]), r(f["video2"])), "mkv")),
     Entry(multiple_files, "batch_modify_audio", "files_audio_replace",
-          lambda r, f: (rows(r(f["video"])), rows(r(f["audio"])), "replace", False), 1),
+          lambda r, f: (rows(r(f["video"])), rows(r(f["audio"])), "replace", False)),
     Entry(multiple_files, "batch_modify_audio", "files_audio_combine",
-          lambda r, f: (rows(r(f["video"])), rows(r(f["audio"])), "combine", False), 1),
+          lambda r, f: (rows(r(f["video"])), rows(r(f["audio"])), "combine", False)),
     Entry(multiple_files, "batch_compress", "files_compress_videos",
-          lambda r, f: (rows(r(f["video"])), "8000", "1080", "libx264"), 1),
-    Entry(multiple_files, "batch_convert", "files_convert", lambda r, f: (rows(r(f["video"])), "mp3"), 1),
-    Entry(multiple_files, "batch_concat", "videos_concat", lambda r, f: (rows(r(f["video"]), r(f["video2"])),), 1),
+          lambda r, f: (rows(r(f["video"])), "8000", "1080", "libx264")),
+    Entry(multiple_files, "batch_convert", "files_convert", lambda r, f: (rows(r(f["video"])), "mp3")),
+    Entry(multiple_files, "batch_concat", "videos_concat", lambda r, f: (rows(r(f["video"]), r(f["video2"])),)),
 ]
 IDS = [f"{e.func}->{e.backend}" for e in ENTRIES]
 
@@ -82,27 +80,26 @@ def files(tmp_path) -> dict[str, str]:
     }
 
 
-@pytest.fixture(autouse=True)
-def no_preview(monkeypatch):
-    # make_temp_copy would call ffmpeg to build the preview
-    monkeypatch.setattr(single_file, "make_temp_copy", lambda path: None)
-
-
-def install_fake(monkeypatch, entry, raises=None):
+def install_fake(monkeypatch, entry, raises=None, returns="OK"):
     calls = []
 
     def fake(*args, **kwargs):
         calls.append((args, kwargs))
         if raises:
             raise raises
-        return "OK"
+        return returns
 
     monkeypatch.setattr(entry.module, entry.backend, fake)
     return calls
 
 
 def call(entry, *args):
-    return getattr(entry.module, entry.func)(*args)
+    """Run a handler like Gradio does and return its last value (the final Result)."""
+    gen = getattr(entry.module, entry.func)(*args, progress=None)
+    assert inspect.isgenerator(gen)
+    values = list(gen)
+    assert values, "handler yielded nothing"
+    return values[-1]
 
 
 def all_strings(obj):
@@ -116,17 +113,9 @@ def all_strings(obj):
             yield from all_strings(v)
 
 
-def assert_error_shape(entry, result, capsys=None):
-    """Error returned (not raised) with exactly as many values as Gradio outputs."""
-    if entry.n_outputs == 0:
-        assert result is None
-        assert "Error:" in capsys.readouterr().out
-    elif entry.n_outputs == 1:
-        assert isinstance(result, str) and result.startswith("Error:"), result
-    else:
-        assert isinstance(result, tuple) and len(result) == entry.n_outputs, result
-        assert result[0].startswith("Error:"), result
-        assert all(v is None for v in result[1:])
+@pytest.mark.parametrize("entry", ENTRIES, ids=IDS)
+def test_handlers_are_generators(entry):
+    assert inspect.isgeneratorfunction(inspect.unwrap(getattr(entry.module, entry.func)))
 
 
 QUOTED_FORMS = {
@@ -147,7 +136,7 @@ def test_backend_receives_clean_paths(entry, form, files, monkeypatch):
         used.append(p)
         return form(p)
 
-    call(entry, *entry.make_args(raw, files))
+    assert call(entry, *entry.make_args(raw, files)) == "OK"
 
     assert len(calls) == 1, f"{entry.backend} was not called"
     received = set(all_strings(calls[0]))
@@ -157,25 +146,25 @@ def test_backend_receives_clean_paths(entry, form, files, monkeypatch):
 
 
 @pytest.mark.parametrize("entry", ENTRIES, ids=IDS)
-def test_missing_path_returns_error(entry, files, monkeypatch, capsys):
+def test_missing_path_returns_error(entry, files, monkeypatch):
     calls = install_fake(monkeypatch, entry)
     missing = {k: v + "_missing" for k, v in files.items()}
 
     result = call(entry, *entry.make_args(lambda p: p, missing))
 
     assert calls == []
-    assert_error_shape(entry, result, capsys)
+    assert isinstance(result, str) and result.startswith("Error:"), result
 
 
 @pytest.mark.parametrize("entry", [e for e in ENTRIES if e.module is not multiple_files],
                          ids=[i for e, i in zip(ENTRIES, IDS) if e.module is not multiple_files])
-def test_empty_path_returns_error(entry, files, monkeypatch, capsys):
+def test_empty_path_returns_error(entry, files, monkeypatch):
     calls = install_fake(monkeypatch, entry)
 
     result = call(entry, *entry.make_args(lambda p: "", files))
 
     assert calls == []  # an empty field must not become "." (current directory)
-    assert_error_shape(entry, result, capsys)
+    assert result == "Error: Empty path"
 
 
 @pytest.mark.parametrize("entry", [e for e in ENTRIES if e.module is multiple_files],
@@ -186,19 +175,46 @@ def test_multiple_files_empty_list(entry, files, monkeypatch):
     result = call(entry, *entry.make_args(lambda p: "", files))
 
     assert calls == []
-    assert isinstance(result, str) and result.startswith("No provided")
+    assert result.startswith("No provided")
 
 
 @pytest.mark.parametrize("entry", ENTRIES, ids=IDS)
-def test_backend_exception_becomes_error(entry, files, monkeypatch, capsys):
+def test_backend_exception_becomes_error(entry, files, monkeypatch):
     install_fake(monkeypatch, entry, raises=RuntimeError("boom"))
 
     result = call(entry, *entry.make_args(lambda p: p, files))
 
-    assert_error_shape(entry, result, capsys)
-    if entry.n_outputs:
-        msg = result if entry.n_outputs == 1 else result[0]
-        assert msg == "Error: boom"
+    assert result.startswith("Error:") and result.endswith("boom"), result
+
+
+@pytest.mark.parametrize("entry", [e for e in ENTRIES if e.module is single_file],
+                         ids=[i for e, i in zip(ENTRIES, IDS) if e.module is single_file])
+def test_single_result_is_output_path(entry, files, monkeypatch, tmp_path):
+    out = tmp_path / "out.mp4"
+    out.write_bytes(b"")
+    install_fake(monkeypatch, entry, returns=str(out))
+
+    assert call(entry, *entry.make_args(lambda p: p, files)) == str(out)
+
+
+def test_progress_is_reported_to_gradio(files, monkeypatch):
+    import time
+    from toolbox.progress import report
+
+    def slow_compress(*args, **kwargs):
+        for i in range(1, 5):
+            report(i / 4)
+            time.sleep(0.3)  # > one poll (0.5 s) in total: intermediate states are shown
+        return "OK"
+
+    monkeypatch.setattr(single_file, "video_compress", slow_compress)
+    seen = []
+    values = list(single_file.compress_vid(files["video"], "8000", "1080", "libx264",
+                                           progress=lambda fraction, desc=None: seen.append(fraction)))
+
+    assert values[-1] == "OK"
+    assert any(v.startswith("a b.mp4 : ") and v.endswith("%") for v in values[:-1]), values
+    assert seen and seen == sorted(seen) and 0 < seen[-1] <= 1
 
 
 # --- cut_and_concate: parsing of the start/end text boxes ---
@@ -211,13 +227,17 @@ def fake_cuts(monkeypatch):
     return calls
 
 
+def run_cc(*args):
+    return list(single_file.cut_and_concate(*args, progress=None))[-1]
+
+
 def test_cut_and_concate_pairs_times(files, fake_cuts):
-    assert single_file.cut_and_concate(files["video"], "0\n00:00:04\n", "2\n6") == ("OK", None)
+    assert run_cc(files["video"], "0\n00:00:04\n", "2\n6") == "OK"
     assert fake_cuts == [[("0", "2"), ("00:00:04", "6")]]
 
 
 def test_cut_and_concate_last_segment_to_end(files, fake_cuts):
-    single_file.cut_and_concate(files["video"], "0\n4", "2")
+    run_cc(files["video"], "0\n4", "2")
     assert fake_cuts == [[("0", "2"), ("4", None)]]
 
 
@@ -229,6 +249,5 @@ def test_cut_and_concate_last_segment_to_end(files, fake_cuts):
     ("", "", "no start time"),
 ])
 def test_cut_and_concate_bad_times(files, fake_cuts, starts, ends, expected):
-    result = single_file.cut_and_concate(files["video"], starts, ends)
-    assert result == (f"Error: {expected}", None)  # exactly one "Error:" prefix
+    assert run_cc(files["video"], starts, ends) == f"Error: {expected}"  # exactly one "Error:" prefix
     assert fake_cuts == []
