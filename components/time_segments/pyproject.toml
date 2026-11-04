@@ -1,0 +1,36 @@
+[build-system]
+requires = [
+  "hatchling",
+  "hatch-requirements-txt",
+  "hatch-fancy-pypi-readme>=22.5.0",
+]
+build-backend = "hatchling.build"
+
+[project]
+name = "gradio_timesegments"
+version = "0.0.1"
+description = "Gradio component: list of (start, end) time segments typed in segmented hh:mm:ss fields"
+readme = "README.md"
+license = "Apache-2.0"
+requires-python = ">=3.8"
+authors = [{ name = "Gabin Clerbout" }]
+keywords = [
+  "gradio-custom-component",
+  "gradio-template-SimpleTextbox"
+]
+# Add dependencies here
+dependencies = ["gradio>=5.0,<6.0"]
+classifiers = [
+  'Programming Language :: Python :: 3',
+  'Operating System :: OS Independent',
+]
+
+
+[project.optional-dependencies]
+dev = ["build", "twine"]
+
+[tool.hatch.build]
+artifacts = ["/backend/gradio_timesegments/templates", "*.pyi", "/\\backend\\gradio_timesegments\\templates"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["/backend/gradio_timesegments"]

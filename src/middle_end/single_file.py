@@ -14,9 +14,15 @@ def _live(path: str, fn, *args, progress=None, **kwargs):
     return run_live(lambda: run_task(task_name(path), fn, *args, **kwargs), progress)
 
 
+Segments = list[tuple[int, int | None]]  # from the TimeSegments component, in seconds; end None = until the end
+
+
 @exception_as_str()
-def cut_video(video_path: str, start: str | None, end: str | None, progress=gr.Progress()):
+def cut_video(video_path: str, segments: Segments, progress=gr.Progress()):
     video_path = require_file(video_path)
+    if not segments:
+        raise ValueError("no segment")
+    start, end = segments[0]
     yield from _live(video_path, video_cut, video_path, start=start, end=end, progress=progress)
 
 
@@ -43,30 +49,10 @@ def compress_vid(video_path: str, bitrate: int = 8000, min_res: str = "1080", vc
                      vcodec=vcodec, progress=progress)
 
 
-def parse_input(input_str: str | None) -> list[str]:
-    """
-    One time per line (seconds or HH:MM:SS). Empty lines are ignored.
-    Values are checked later, all at once, by back_end.video_manip.validate_segments.
-    """
-    return [line.strip() for line in (input_str or "").splitlines() if line.strip()]
-
-
 @exception_as_str()
-def cut_and_concate(video_path: str, input_start: str, input_end: str, progress=gr.Progress()):
+def cut_and_concate(video_path: str, segments: Segments, progress=gr.Progress()):
+    """Values are checked all at once by back_end.video_manip.validate_segments before any cut."""
     video_path = require_file(video_path)
-
-    starts = parse_input(input_start)
-    ends: list[str | None] = parse_input(input_end)
-
-    if not starts:
-        raise ValueError("no start time")
-
-    # last segment can go to the end of the video
-    if len(ends) + 1 == len(starts):
-        ends.append(None)
-
-    if len(starts) != len(ends):
-        raise ValueError(f"starts={len(starts)} != ends={len(ends)}")
-
-    yield from _live(video_path, multiple_cuts_plus_concatenate, video_path, list(zip(starts, ends)),
-                     progress=progress)
+    if not segments:
+        raise ValueError("no segment")
+    yield from _live(video_path, multiple_cuts_plus_concatenate, video_path, list(segments), progress=progress)

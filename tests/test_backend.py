@@ -137,6 +137,8 @@ def test_cut_and_concat_invalid_segments_create_nothing(tmp_video, tmp_path):
     [("5", "7"), ("0", "2")],  # reordering on purpose
     [("0", "5"), ("3", "8")],  # overlaps allowed
     [("0", "10")],  # end == rounded duration
+    [(0, 2), (5, None)],  # ints from the TimeSegments component
+    [(0, 600 // 60)],
 ])
 def test_validate_segments_ok(times):
     assert validate_segments(times, duration=10.04) == []
@@ -149,7 +151,7 @@ def test_validate_segments_ok(times):
     ([("4", "4")], "segment 1: start 00:00:04 >= end 00:00:04"),
     ([("0", "2"), ("12", None)], "segment 2: start 00:00:12 is after the end of the video (00:00:10)"),
     ([("0", "00:01:00")], "segment 1: end 00:01:00 is after the end of the video (00:00:10)"),
-    ([("0", None), ("3", "5")], "segment 1: missing end (only the last segment can go to the end of the video)"),
+    ([("0", None), ("3", "5")], "segment 1: end is empty (only the last segment can go to the end of the video)"),
 ])
 def test_validate_segments_errors(times, expected):
     assert validate_segments(times, duration=10.04) == [expected]

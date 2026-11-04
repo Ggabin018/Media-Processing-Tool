@@ -343,7 +343,7 @@ def validate_segments(times: list[tuple[str | None, str | None]], duration: floa
         end_s = None
         if end in (None, ""):
             if i != len(times):
-                errors.append(f"segment {i}: missing end (only the last segment can go to the end of the video)")
+                errors.append(f"segment {i}: end is empty (only the last segment can go to the end of the video)")
         else:
             end_s = to_seconds(end)
             if end_s is None:

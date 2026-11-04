@@ -29,13 +29,13 @@ def rows(*paths):
 
 ENTRIES = [
     # Single file
-    Entry(single_file, "cut_video", "video_cut", lambda r, f: (r(f["video"]), "1", "3")),
+    Entry(single_file, "cut_video", "video_cut", lambda r, f: (r(f["video"]), [(1, 3)])),
     Entry(single_file, "convert_media_to_media", "convert_media", lambda r, f: (r(f["video"]), "mp3")),
     Entry(single_file, "modify_audio", "audio_replace", lambda r, f: (r(f["video"]), r(f["audio"]), "replace")),
     Entry(single_file, "modify_audio", "audio_combine", lambda r, f: (r(f["video"]), r(f["audio"]), "combine")),
     Entry(single_file, "compress_vid", "video_compress", lambda r, f: (r(f["video"]), "8000", "1080", "libx264")),
     Entry(single_file, "cut_and_concate", "multiple_cuts_plus_concatenate",
-          lambda r, f: (r(f["video"]), "0\n4", "2\n6")),
+          lambda r, f: (r(f["video"]), [(0, 2), (4, 6)])),
     # Directory
     Entry(directory, "directory_media2media", "dir_convert_media", lambda r, f: (r(f["vdir"]), "mp3")),
     Entry(directory, "directory_audio_modify", "dir_audio_replace",
@@ -217,7 +217,7 @@ def test_progress_is_reported_to_gradio(files, monkeypatch):
     assert seen and seen == sorted(seen) and 0 < seen[-1] <= 1
 
 
-# --- cut_and_concate: parsing of the start/end text boxes ---
+# --- segments coming from the TimeSegments component ---
 
 @pytest.fixture
 def fake_cuts(monkeypatch):
@@ -231,27 +231,23 @@ def run_cc(*args):
     return list(single_file.cut_and_concate(*args, progress=None))[-1]
 
 
-def test_cut_and_concate_pairs_times(files, fake_cuts):
-    assert run_cc(files["video"], "0\n00:00:04\n", "2\n6") == "OK"
-    assert fake_cuts == [[("0", "2"), ("00:00:04", "6")]]
+def test_cut_and_concate_passes_segments_as_is(files, fake_cuts):
+    assert run_cc(files["video"], [(0, 2), (4, None)]) == "OK"
+    assert fake_cuts == [[(0, 2), (4, None)]]  # checked all at once by validate_segments
 
 
-def test_cut_and_concate_last_segment_to_end(files, fake_cuts):
-    run_cc(files["video"], "0\n4", "2")
-    assert fake_cuts == [[("0", "2"), ("4", None)]]
-
-
-@pytest.mark.parametrize("starts, ends, expected", [
-    ("0\n4\n8", "2", "starts=3 != ends=1"),
-    ("0", "2\n4\n6", "starts=1 != ends=3"),
-    ("", "", "no start time"),
-])
-def test_cut_and_concate_bad_structure(files, fake_cuts, starts, ends, expected):
-    assert run_cc(files["video"], starts, ends) == f"Error: {expected}"  # exactly one "Error:" prefix
+def test_cut_and_concate_without_segment(files, fake_cuts):
+    assert run_cc(files["video"], []) == "Error: no segment"
     assert fake_cuts == []
 
 
-def test_cut_and_concate_values_are_checked_by_the_back_end(files, fake_cuts):
-    # typos are not rejected line by line here: validate_segments reports them all at once
-    run_cc(files["video"], "abc\n4", "2\n1:2")
-    assert fake_cuts == [[("abc", "2"), ("4", "1:2")]]
+def test_cut_video_uses_the_single_segment(files, monkeypatch):
+    calls = []
+    monkeypatch.setattr(single_file, "video_cut", lambda path, start, end: calls.append((start, end)) or "OK")
+    assert list(single_file.cut_video(files["video"], [(5, None)], progress=None))[-1] == "OK"
+    assert calls == [(5, None)]
+
+
+def test_cut_video_without_segment(files, monkeypatch):
+    install_fake(monkeypatch, ENTRIES[0])
+    assert list(single_file.cut_video(files["video"], [], progress=None))[-1] == "Error: no segment"

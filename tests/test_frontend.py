@@ -3,8 +3,10 @@ import inspect
 
 import gradio as gr
 import pytest
+from gradio_timesegments import TimeSegments
 
-from front_end.gradio_manager import GradioManager
+from conftest import VIDEOS
+from front_end.gradio_manager import GradioManager, segment_limits
 
 
 @pytest.fixture(scope="module")
@@ -25,6 +27,8 @@ def empty_value(component):
         return False
     if isinstance(component, gr.Dropdown):
         return None
+    if isinstance(component, TimeSegments):
+        return []
     return ""
 
 
@@ -96,3 +100,39 @@ def test_open_buttons_read_a_result_or_directory_field(handlers):
             assert source in path_inputs, name(bf)
         else:
             assert source in results, name(bf)
+
+
+def handler(handlers, fn_name):
+    found = [bf for bf in handlers if bf.fn.__name__ == fn_name]
+    assert len(found) == 1, fn_name
+    return found[0]
+
+
+@pytest.mark.parametrize("fn_name, max_segments", [("cut_video", 1), ("cut_and_concate", None)])
+def test_cut_tabs_use_time_segments(handlers, fn_name, max_segments):
+    segments = [c for c in handler(handlers, fn_name).inputs if isinstance(c, TimeSegments)]
+    assert len(segments) == 1
+    assert segments[0].max_segments == max_segments
+    assert not any(isinstance(c, gr.Textbox) and "time" in (c.label or "").lower()
+                   for c in handler(handlers, fn_name).inputs)
+
+
+def test_segment_fields_follow_the_video_duration(handlers):
+    limits = [bf for bf in handlers if bf.fn is segment_limits]
+    assert len(limits) == 2  # Cut Video + Cut and concatenate
+    for bf in limits:
+        assert isinstance(bf.inputs[0], gr.Textbox) and isinstance(bf.outputs[0], TimeSegments)
+        assert bf.concurrency_id != "ffmpeg"  # instant, never waits behind an encode
+    cuts = {id(c) for name in ("cut_video", "cut_and_concate") for c in handler(handlers, name).inputs}
+    assert all(id(bf.inputs[0]) in cuts and id(bf.outputs[0]) in cuts for bf in limits)
+
+
+@pytest.mark.ffmpeg
+def test_segment_limits_on_a_real_video():
+    update = segment_limits(f'"{VIDEOS / "1.mp4"}"')
+    assert update["maximum"] == pytest.approx(10.04, abs=0.01)
+
+
+@pytest.mark.parametrize("path", ["", "nope.mp4", None])
+def test_segment_limits_ignores_invalid_paths(path):
+    assert "maximum" not in segment_limits(path)

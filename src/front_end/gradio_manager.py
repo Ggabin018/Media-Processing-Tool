@@ -14,6 +14,8 @@ from toolbox.tkinter_getters import *
 from toolbox.os_open import open_file, reveal_in_folder
 from toolbox.paths import require_file, require_dir
 from toolbox.progress import first_line
+from back_end.video_manip import get_video_duration
+from gradio_timesegments import TimeSegments
 
 
 def on_close(sig, frame):
@@ -95,6 +97,20 @@ def open_buttons(result: gr.Textbox) -> None:
         gr.Button("📁 Ouvrir le dossier", size="sm").click(open_result_folder, inputs=result)
 
 
+def segment_limits(video_path: str):
+    """Cap the TimeSegments fields to the duration of the chosen video (no change if the path is not valid)."""
+    try:
+        duration = get_video_duration(require_file(video_path))
+    except Exception:
+        return gr.update()
+    return gr.update(maximum=duration) if isinstance(duration, float) else gr.update()
+
+
+def follow_video_duration(video_path: gr.Textbox, segments: TimeSegments) -> None:
+    video_path.change(segment_limits, inputs=video_path, outputs=segments, trigger_mode="always_last",
+                      show_progress="hidden")
+
+
 def open_dir_button(dir_path: gr.Textbox) -> None:
     """Open the processed directory (Directory tabs)."""
     gr.Button("📁 Ouvrir le dossier", size="sm").click(open_directory, inputs=dir_path)
@@ -114,8 +130,7 @@ class GradioManager:
                             with gr.Row(equal_height=True):
                                 s_cut_v_path = gr.Textbox(label="Video Path", placeholder="required", scale=8)
                                 s_cut_get_v_path = gr.Button("📂", scale=1)
-                            s_cut_start_time = gr.Textbox(label="Start Time (HH:MM:SS or seconds)")
-                            s_cut_end_time = gr.Textbox(label="End Time (HH:MM:SS) or seconds")
+                            s_cut_segment = TimeSegments(label="Segment", max_segments=1)
 
                             s_cut_run = gr.Button("Cut Video")
                         with gr.Column():
@@ -123,8 +138,9 @@ class GradioManager:
                             open_buttons(s_cut_text_output)
 
                     s_cut_get_v_path.click(get_file, inputs=s_cut_v_path, outputs=s_cut_v_path)
+                    follow_video_duration(s_cut_v_path, s_cut_segment)
                     s_cut_run.click(cut_video,
-                                    inputs=[s_cut_v_path, s_cut_start_time, s_cut_end_time],
+                                    inputs=[s_cut_v_path, s_cut_segment],
                                     outputs=s_cut_text_output, **HEAVY, show_progress_on=s_cut_run)
 
                 with gr.Tab("Cut and concatenate"):
@@ -134,9 +150,7 @@ class GradioManager:
                                 s_cc_v_path = gr.Textbox(label="Video Path", placeholder="required", scale=8)
                                 s_cc_get_v_path = gr.Button("📂", scale=1)
 
-                            with gr.Row(): # TODO: shift+enter (add a new line)
-                                s_cc_start_input = gr.Textbox(label="start", lines=1, max_lines=20)
-                                s_cc_end_input = gr.Textbox(label="end", lines=1, max_lines=20)
+                            s_cc_segments = TimeSegments(label="Segments")
 
                             s_cc_run = gr.Button("Cut and concatenate")
                         with gr.Column():
@@ -144,8 +158,9 @@ class GradioManager:
                             open_buttons(s_cc_text_output)
 
                     s_cc_get_v_path.click(get_file, inputs=s_cc_v_path, outputs=s_cc_v_path)
+                    follow_video_duration(s_cc_v_path, s_cc_segments)
                     s_cc_run.click(cut_and_concate,
-                                   inputs=[s_cc_v_path, s_cc_start_input, s_cc_end_input],
+                                   inputs=[s_cc_v_path, s_cc_segments],
                                    outputs=s_cc_text_output, **HEAVY, show_progress_on=s_cc_run)
 
                 with gr.Tab("Convert Media"):
