@@ -3,6 +3,7 @@ import os
 import ffmpeg
 
 from toolbox.ffmpeg_runner import run_ffmpeg
+from toolbox.progress import run_task
 from toolbox.utils import to_seconds
 
 
@@ -316,14 +317,18 @@ def videos_concat(videos: list[str]) -> str:
 
 def multiple_cuts_plus_concatenate(video_path: str, times: list[tuple[str, str|None]]) -> str:
     video_paths = []
-    padding = len(str(len(times)))
+    n = len(times)
+    padding = len(str(n))
     for i, (start, end) in enumerate(times):
-        path = video_cut(video_path, start, end)
+        # one line per step on the progress board
+        path = run_task(f"segment {i + 1}/{n}", video_cut, video_path, start, end)
         if os.path.exists(path):
             new_name = os.path.splitext(path)[0] + f"__{i:0{padding}}.mp4"
-            os.rename(path, new_name)
+            os.replace(path, new_name)
             video_paths.append(new_name)
         else:
             # error during cut
-            return f"Error with parameters:\nstart={start}\nend={end}\n" + path
-    return videos_concat(video_paths)
+            return f"Error with parameters: start={start} end={end}: {path}"
+    if len(video_paths) == 1:
+        return video_paths[0]
+    return run_task("concaténation", videos_concat, video_paths)

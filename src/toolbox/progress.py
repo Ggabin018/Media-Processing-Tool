@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 PENDING, RUNNING, DONE, ERROR = "pending", "running", "done", "error"
+FEMININE_LABELS = {"vidéos"}
 
 
 @dataclass
@@ -80,7 +81,8 @@ class ProgressBoard:
         total = len(self._tasks)
         finished = sum(t.state in (DONE, ERROR) for t in self._tasks.values())
         errors = sum(t.state == ERROR for t in self._tasks.values())
-        text = f"{self.label} {finished}/{total} traités"
+        done_word = "traitées" if self.label.lower() in FEMININE_LABELS else "traités"
+        text = f"{self.label} {finished}/{total} {done_word}"
         if errors:
             text += f", {errors} en erreur"
         return text

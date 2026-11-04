@@ -11,6 +11,9 @@ from front_end.script_js import js
 from toolbox.draggable_list_box import WindowDragListBox
 from toolbox.parameters import Params
 from toolbox.tkinter_getters import *
+from toolbox.os_open import open_file, reveal_in_folder
+from toolbox.paths import require_file, require_dir
+from toolbox.progress import first_line
 
 
 def on_close(sig, frame):
@@ -53,6 +56,48 @@ def reorder_list(dataframe):
         return dataframe
 
 
+# heavy (ffmpeg) jobs: one at a time for the whole app, the UI shows the queue position
+HEAVY = dict(concurrency_id="ffmpeg", concurrency_limit=1)
+
+
+def result_box(label: str = "Result") -> gr.Textbox:
+    """Result field: live progress board while running, then the result."""
+    return gr.Textbox(label=label, interactive=False, lines=4, max_lines=20)
+
+
+def open_result_file(result: str) -> None:
+    try:
+        open_file(require_file(first_line(result)))
+    except Exception:
+        gr.Warning("Aucun fichier à ouvrir")
+
+
+def open_result_folder(result: str) -> None:
+    try:
+        reveal_in_folder(require_file(first_line(result)))
+    except Exception:
+        gr.Warning("Aucun fichier à ouvrir")
+
+
+def open_directory(dir_path: str) -> None:
+    try:
+        reveal_in_folder(require_dir(dir_path))
+    except Exception:
+        gr.Warning("Aucun dossier à ouvrir")
+
+
+def open_buttons(result: gr.Textbox) -> None:
+    """Open the produced file / its folder (Single tabs)."""
+    with gr.Row():
+        gr.Button("▶ Ouvrir le fichier", size="sm").click(open_result_file, inputs=result)
+        gr.Button("📁 Ouvrir le dossier", size="sm").click(open_result_folder, inputs=result)
+
+
+def open_dir_button(dir_path: gr.Textbox) -> None:
+    """Open the processed directory (Directory tabs)."""
+    gr.Button("📁 Ouvrir le dossier", size="sm").click(open_directory, inputs=dir_path)
+
+
 # region Gradio Manager
 
 class GradioManager:
@@ -72,13 +117,13 @@ class GradioManager:
 
                             s_cut_run = gr.Button("Cut Video")
                         with gr.Column():
-                            s_cut_text_output = gr.Textbox(label="Result", interactive=False)
-                            s_cut_video_output = gr.Video(sources=["upload"])
+                            s_cut_text_output = result_box()
+                            open_buttons(s_cut_text_output)
 
                     s_cut_get_v_path.click(get_file, inputs=s_cut_v_path, outputs=s_cut_v_path)
                     s_cut_run.click(cut_video,
                                     inputs=[s_cut_v_path, s_cut_start_time, s_cut_end_time],
-                                    outputs=[s_cut_text_output, s_cut_video_output])
+                                    outputs=s_cut_text_output, **HEAVY)
 
                 with gr.Tab("Cut and concatenate"):
                     with gr.Row():
@@ -93,13 +138,13 @@ class GradioManager:
 
                             s_cc_run = gr.Button("Cut and concatenate")
                         with gr.Column():
-                            s_cc_text_output = gr.Textbox(label="Result", interactive=False)
-                            s_cc_video_output = gr.Video(sources=["upload"])
+                            s_cc_text_output = result_box()
+                            open_buttons(s_cc_text_output)
 
                     s_cc_get_v_path.click(get_file, inputs=s_cc_v_path, outputs=s_cc_v_path)
                     s_cc_run.click(cut_and_concate,
                                    inputs=[s_cc_v_path, s_cc_start_input, s_cc_end_input],
-                                   outputs=[s_cc_text_output, s_cc_video_output])
+                                   outputs=s_cc_text_output, **HEAVY)
 
                 with gr.Tab("Convert Media"):
                     with gr.Row():
@@ -113,13 +158,12 @@ class GradioManager:
                                                                         "ogg", "flac"])
                             s_conv_run = gr.Button("Convert")
                         with gr.Column():
-                            s_conv_text_output = gr.Textbox(label="Result", interactive=False)
-                            s_conv_a_output = gr.Audio()
-                            s_conv_v_output = gr.Video(sources=["upload"])
+                            s_conv_text_output = result_box()
+                            open_buttons(s_conv_text_output)
 
                     s_conv_get_v_path.click(get_file, inputs=s_conv_v_path, outputs=s_conv_v_path)
                     s_conv_run.click(convert_media_to_media, inputs=[s_conv_v_path, s_conv_chose_ext],
-                                     outputs=[s_conv_text_output, s_conv_v_output, s_conv_a_output])
+                                     outputs=s_conv_text_output, **HEAVY)
 
                 with gr.Tab("Modify Audio in Video"):
                     with gr.Row():
@@ -133,14 +177,14 @@ class GradioManager:
                             s_modif_chose_opt = gr.Dropdown(label="Select a mode", choices=["replace", "combine"])
                             s_modif_btn_run = gr.Button("Modify Audio")
                         with gr.Column():
-                            s_modif_text_output = gr.Textbox(label="Result", interactive=False)
-                            s_modif_video_output = gr.Video(sources=['upload'])
+                            s_modif_text_output = result_box()
+                            open_buttons(s_modif_text_output)
 
                     s_modif_btn_get_video_path.click(get_file, inputs=s_modif_video_path, outputs=s_modif_video_path)
                     s_modif_btn_get_audio_path.click(get_file, inputs=s_modif_audio_path, outputs=s_modif_audio_path)
                     s_modif_btn_run.click(modify_audio,
                                           inputs=[s_modif_video_path, s_modif_audio_path, s_modif_chose_opt],
-                                          outputs=[s_modif_text_output, s_modif_video_output])
+                                          outputs=s_modif_text_output, **HEAVY)
 
                 with gr.Tab("Compress Video"):
                     with gr.Row():
@@ -154,11 +198,12 @@ class GradioManager:
                                                          choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
                             s_compr_run = gr.Button("Compress")
                         with gr.Column():
-                            s_cv_output = gr.Textbox(label="Result", interactive=False)
+                            s_cv_output = result_box()
+                            open_buttons(s_cv_output)
 
                     s_compr_btn_get_v_path.click(get_file, s_compr_v_path, s_compr_v_path)
                     s_compr_run.click(compress_vid, [s_compr_v_path, s_compr_bitrate, s_compr_min_res, s_compr_vcodec],
-                                      s_cv_output)
+                                      s_cv_output, **HEAVY)
 
             with gr.Tab("Directory"):
                 with gr.Tab("Convert medias"):
@@ -173,11 +218,12 @@ class GradioManager:
                                                                         "ogg", "flac"])
                             d_conv_run = gr.Button("Convert")
                         with gr.Column():
-                            d_conv_output = gr.Textbox(label="Result", interactive=False)
+                            d_conv_output = result_box()
+                            open_dir_button(d_conv_v_path)
 
                     d_conv_btn_get_v_path.click(get_dir, inputs=d_conv_v_path, outputs=d_conv_v_path)
                     d_conv_run.click(directory_media2media, inputs=[d_conv_v_path, d_conv_chose_ext],
-                                     outputs=d_conv_output)
+                                     outputs=d_conv_output, **HEAVY)
 
                 with gr.Tab("Modify audio"):
                     gr.Markdown("Random choice mapping between videos and audios")
@@ -193,13 +239,14 @@ class GradioManager:
                             d_modif_randomize = gr.Checkbox(label="Random order", value=True)
                             d_modif_run = gr.Button("Batch Modify Audio")
                         with gr.Column():
-                            d_modif_output = gr.Textbox(label="Result", interactive=False)
+                            d_modif_output = result_box()
+                            open_dir_button(d_modif_v_path)
 
                     d_modif_btn_get_v_path.click(get_dir, inputs=d_modif_v_path, outputs=d_modif_v_path)
                     d_modif_btn_get_a_path.click(get_dir, inputs=d_modif_a_path, outputs=d_modif_a_path)
                     d_modif_run.click(directory_audio_modify,
                                       inputs=[d_modif_v_path, d_modif_a_path, d_modif_mode_opt, d_modif_randomize],
-                                      outputs=d_modif_output)
+                                      outputs=d_modif_output, **HEAVY)
 
                 with gr.Tab("Compress Videos"):
                     with gr.Row():
@@ -214,12 +261,13 @@ class GradioManager:
 
                             d_compr_run = gr.Button("Batch compress video")
                         with gr.Column():
-                            d_compr_output = gr.Textbox(label="Result", interactive=False)
+                            d_compr_output = result_box()
+                            open_dir_button(d_compr_v_path)
 
                     d_compr_btn_get_v_path.click(get_dir, d_compr_v_path, d_compr_v_path)
                     d_compr_run.click(directory_compress,
                                       [d_compr_v_path, d_compr_bitrate, d_compr_min_res, d_compr_vcodec],
-                                      d_compr_output)
+                                      d_compr_output, **HEAVY)
 
                 with gr.Tab("Compress on parent directory"):
                     with gr.Row():
@@ -233,10 +281,14 @@ class GradioManager:
                                                          choices=["hevc_nvenc", "libx264", "libvpx-vp9", "h264_nvenc"])
 
                             d_pcompr_run = gr.Button("Batch compress video")
+                        with gr.Column():
+                            d_pcompr_output = result_box()
+                            open_dir_button(d_pcompr_v_path)
 
                         d_pcompr_btn_get_v_path.click(get_dir, d_pcompr_v_path, d_pcompr_v_path)
                         d_pcompr_run.click(pdirectory_compress,
-                                          [d_pcompr_v_path, d_pcompr_bitrate, d_pcompr_min_res, d_pcompr_vcodec])
+                                           [d_pcompr_v_path, d_pcompr_bitrate, d_pcompr_min_res, d_pcompr_vcodec],
+                                           d_pcompr_output, **HEAVY)
 
 
             with gr.Tab("Multiples Videos"):
@@ -259,10 +311,10 @@ class GradioManager:
                                                               choices=["mp4", "mov", "avi", "webm", "mkv"])
                             m_cvv_run = gr.Button("Convert")
                         with gr.Column():
-                            m_cvv_output = gr.Textbox(label="Result")
+                            m_cvv_output = result_box()
 
                     m_cvv_btn_get_v_path.click(get_video_files, inputs=m_cvv_v_path, outputs=m_cvv_v_path)
-                    m_cvv_run.click(batch_convert, inputs=[m_cvv_v_path, m_cvv_chose_ext], outputs=m_cvv_output)
+                    m_cvv_run.click(batch_convert, inputs=[m_cvv_v_path, m_cvv_chose_ext], outputs=m_cvv_output, **HEAVY)
 
                 with gr.Tab("Convert Audios"):
                     with gr.Row():
@@ -283,10 +335,10 @@ class GradioManager:
                                                               choices=["mp3", "wav", "ogg", "flac"])
                             m_cva_run = gr.Button("Convert")
                         with gr.Column():
-                            m_cva_output = gr.Textbox(label="Result")
+                            m_cva_output = result_box()
 
                     m_cva_btn_get_a_path.click(get_audio_files, inputs=m_cva_a_path, outputs=m_cva_a_path)
-                    m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output)
+                    m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output, **HEAVY)
 
                 with gr.Tab("Modify audio"):
                     with gr.Row():
@@ -325,13 +377,13 @@ class GradioManager:
                             m_modif_randomize = gr.Checkbox(label="Random order", value=True)
                             m_modif_run = gr.Button("Batch Modify Audio")
                         with gr.Column():
-                            m_modif_output = gr.Textbox(label="Result")
+                            m_modif_output = result_box()
 
                     m_modif_btn_get_v_path.click(get_video_files, inputs=m_modif_v_path, outputs=m_modif_v_path)
                     m_modif_btn_get_a_path.click(get_audio_files, inputs=m_modif_a_path, outputs=m_modif_a_path)
                     m_modif_run.click(batch_modify_audio,
                                       inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode, m_modif_randomize],
-                                      outputs=m_modif_output)
+                                      outputs=m_modif_output, **HEAVY)
 
                 with gr.Tab("Compress to"):
                     with gr.Row():
@@ -355,12 +407,12 @@ class GradioManager:
 
                             m_compr_run = gr.Button("Batch compress video")
                         with gr.Column():
-                            m_compr_output = gr.Textbox(label="Result")
+                            m_compr_output = result_box()
 
                     m_compr_get_v_path.click(get_video_files, m_compr_v_path, m_compr_v_path)
                     m_compr_run.click(batch_compress,
                                       [m_compr_v_path, m_compr_bitrate, m_compr_min_res, m_compr_vcodec],
-                                      m_compr_output)
+                                      m_compr_output, **HEAVY)
 
                 with gr.Tab("Concatenate videos"):
                     with gr.Row():
@@ -379,10 +431,11 @@ class GradioManager:
                                 m_concat_btn_get_v_path = gr.Button("📂")
                             m_concat_run = gr.Button("Concatenate")
                         with gr.Column():
-                            m_concat_output = gr.Textbox(label="Result")
+                            m_concat_output = result_box()
+                            open_buttons(m_concat_output)
 
                     m_concat_btn_get_v_path.click(get_video_files, inputs=m_concat_v_path, outputs=m_concat_v_path)
-                    m_concat_run.click(batch_concat, inputs=m_concat_v_path, outputs=m_concat_output)
+                    m_concat_run.click(batch_concat, inputs=m_concat_v_path, outputs=m_concat_output, **HEAVY)
 
             with gr.Tab("Options"):
                 with gr.Row():
