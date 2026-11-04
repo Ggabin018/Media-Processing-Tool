@@ -56,7 +56,9 @@ def reorder_list(dataframe):
         return dataframe
 
 
-# heavy (ffmpeg) jobs: one at a time for the whole app, the UI shows the queue position
+# heavy (ffmpeg) jobs: one at a time for the whole app, the UI shows the queue position.
+# Each click also gets show_progress_on=<its run button>: otherwise Gradio's loading overlay
+# covers the Result field and hides the live progress board streamed into it.
 HEAVY = dict(concurrency_id="ffmpeg", concurrency_limit=1)
 
 
@@ -123,7 +125,7 @@ class GradioManager:
                     s_cut_get_v_path.click(get_file, inputs=s_cut_v_path, outputs=s_cut_v_path)
                     s_cut_run.click(cut_video,
                                     inputs=[s_cut_v_path, s_cut_start_time, s_cut_end_time],
-                                    outputs=s_cut_text_output, **HEAVY)
+                                    outputs=s_cut_text_output, **HEAVY, show_progress_on=s_cut_run)
 
                 with gr.Tab("Cut and concatenate"):
                     with gr.Row():
@@ -144,7 +146,7 @@ class GradioManager:
                     s_cc_get_v_path.click(get_file, inputs=s_cc_v_path, outputs=s_cc_v_path)
                     s_cc_run.click(cut_and_concate,
                                    inputs=[s_cc_v_path, s_cc_start_input, s_cc_end_input],
-                                   outputs=s_cc_text_output, **HEAVY)
+                                   outputs=s_cc_text_output, **HEAVY, show_progress_on=s_cc_run)
 
                 with gr.Tab("Convert Media"):
                     with gr.Row():
@@ -163,7 +165,7 @@ class GradioManager:
 
                     s_conv_get_v_path.click(get_file, inputs=s_conv_v_path, outputs=s_conv_v_path)
                     s_conv_run.click(convert_media_to_media, inputs=[s_conv_v_path, s_conv_chose_ext],
-                                     outputs=s_conv_text_output, **HEAVY)
+                                     outputs=s_conv_text_output, **HEAVY, show_progress_on=s_conv_run)
 
                 with gr.Tab("Modify Audio in Video"):
                     with gr.Row():
@@ -184,7 +186,7 @@ class GradioManager:
                     s_modif_btn_get_audio_path.click(get_file, inputs=s_modif_audio_path, outputs=s_modif_audio_path)
                     s_modif_btn_run.click(modify_audio,
                                           inputs=[s_modif_video_path, s_modif_audio_path, s_modif_chose_opt],
-                                          outputs=s_modif_text_output, **HEAVY)
+                                          outputs=s_modif_text_output, **HEAVY, show_progress_on=s_modif_btn_run)
 
                 with gr.Tab("Compress Video"):
                     with gr.Row():
@@ -203,7 +205,7 @@ class GradioManager:
 
                     s_compr_btn_get_v_path.click(get_file, s_compr_v_path, s_compr_v_path)
                     s_compr_run.click(compress_vid, [s_compr_v_path, s_compr_bitrate, s_compr_min_res, s_compr_vcodec],
-                                      s_cv_output, **HEAVY)
+                                      s_cv_output, **HEAVY, show_progress_on=s_compr_run)
 
             with gr.Tab("Directory"):
                 with gr.Tab("Convert medias"):
@@ -223,7 +225,7 @@ class GradioManager:
 
                     d_conv_btn_get_v_path.click(get_dir, inputs=d_conv_v_path, outputs=d_conv_v_path)
                     d_conv_run.click(directory_media2media, inputs=[d_conv_v_path, d_conv_chose_ext],
-                                     outputs=d_conv_output, **HEAVY)
+                                     outputs=d_conv_output, **HEAVY, show_progress_on=d_conv_run)
 
                 with gr.Tab("Modify audio"):
                     gr.Markdown("Random choice mapping between videos and audios")
@@ -246,7 +248,7 @@ class GradioManager:
                     d_modif_btn_get_a_path.click(get_dir, inputs=d_modif_a_path, outputs=d_modif_a_path)
                     d_modif_run.click(directory_audio_modify,
                                       inputs=[d_modif_v_path, d_modif_a_path, d_modif_mode_opt, d_modif_randomize],
-                                      outputs=d_modif_output, **HEAVY)
+                                      outputs=d_modif_output, **HEAVY, show_progress_on=d_modif_run)
 
                 with gr.Tab("Compress Videos"):
                     with gr.Row():
@@ -267,7 +269,7 @@ class GradioManager:
                     d_compr_btn_get_v_path.click(get_dir, d_compr_v_path, d_compr_v_path)
                     d_compr_run.click(directory_compress,
                                       [d_compr_v_path, d_compr_bitrate, d_compr_min_res, d_compr_vcodec],
-                                      d_compr_output, **HEAVY)
+                                      d_compr_output, **HEAVY, show_progress_on=d_compr_run)
 
                 with gr.Tab("Compress on parent directory"):
                     with gr.Row():
@@ -288,7 +290,7 @@ class GradioManager:
                         d_pcompr_btn_get_v_path.click(get_dir, d_pcompr_v_path, d_pcompr_v_path)
                         d_pcompr_run.click(pdirectory_compress,
                                            [d_pcompr_v_path, d_pcompr_bitrate, d_pcompr_min_res, d_pcompr_vcodec],
-                                           d_pcompr_output, **HEAVY)
+                                           d_pcompr_output, **HEAVY, show_progress_on=d_pcompr_run)
 
 
             with gr.Tab("Multiples Videos"):
@@ -314,7 +316,7 @@ class GradioManager:
                             m_cvv_output = result_box()
 
                     m_cvv_btn_get_v_path.click(get_video_files, inputs=m_cvv_v_path, outputs=m_cvv_v_path)
-                    m_cvv_run.click(batch_convert, inputs=[m_cvv_v_path, m_cvv_chose_ext], outputs=m_cvv_output, **HEAVY)
+                    m_cvv_run.click(batch_convert, inputs=[m_cvv_v_path, m_cvv_chose_ext], outputs=m_cvv_output, **HEAVY, show_progress_on=m_cvv_run)
 
                 with gr.Tab("Convert Audios"):
                     with gr.Row():
@@ -338,7 +340,7 @@ class GradioManager:
                             m_cva_output = result_box()
 
                     m_cva_btn_get_a_path.click(get_audio_files, inputs=m_cva_a_path, outputs=m_cva_a_path)
-                    m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output, **HEAVY)
+                    m_cva_run.click(batch_convert, inputs=[m_cva_a_path, m_cva_chose_ext], outputs=m_cva_output, **HEAVY, show_progress_on=m_cva_run)
 
                 with gr.Tab("Modify audio"):
                     with gr.Row():
@@ -383,7 +385,7 @@ class GradioManager:
                     m_modif_btn_get_a_path.click(get_audio_files, inputs=m_modif_a_path, outputs=m_modif_a_path)
                     m_modif_run.click(batch_modify_audio,
                                       inputs=[m_modif_v_path, m_modif_a_path, m_modif_opt_mode, m_modif_randomize],
-                                      outputs=m_modif_output, **HEAVY)
+                                      outputs=m_modif_output, **HEAVY, show_progress_on=m_modif_run)
 
                 with gr.Tab("Compress to"):
                     with gr.Row():
@@ -412,7 +414,7 @@ class GradioManager:
                     m_compr_get_v_path.click(get_video_files, m_compr_v_path, m_compr_v_path)
                     m_compr_run.click(batch_compress,
                                       [m_compr_v_path, m_compr_bitrate, m_compr_min_res, m_compr_vcodec],
-                                      m_compr_output, **HEAVY)
+                                      m_compr_output, **HEAVY, show_progress_on=m_compr_run)
 
                 with gr.Tab("Concatenate videos"):
                     with gr.Row():
@@ -435,7 +437,7 @@ class GradioManager:
                             open_buttons(m_concat_output)
 
                     m_concat_btn_get_v_path.click(get_video_files, inputs=m_concat_v_path, outputs=m_concat_v_path)
-                    m_concat_run.click(batch_concat, inputs=m_concat_v_path, outputs=m_concat_output, **HEAVY)
+                    m_concat_run.click(batch_concat, inputs=m_concat_v_path, outputs=m_concat_output, **HEAVY, show_progress_on=m_concat_run)
 
             with gr.Tab("Options"):
                 with gr.Row():
