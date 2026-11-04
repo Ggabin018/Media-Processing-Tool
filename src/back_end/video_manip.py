@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import ffmpeg
 
@@ -115,12 +116,13 @@ def get_video_bitrate(video_path: str) -> float | str:
         return f"Error extracting bitrate: {e}"
 
 
-def video_cut(input_video: str, start=None, end=None) -> str:
+def video_cut(input_video: str, start=None, end=None, output_video: str | None = None) -> str:
     """
     Cut a video from start to end
     :param input_video: path to the input video file
     :param start: start time in format "HH:MM:SS" or seconds
     :param end: end time in format "HH:MM:SS" or seconds
+    :param output_video: output path (default: <input>__cut.mp4)
     :return: path to the output video file
     """
     if not is_video(input_video):
@@ -141,7 +143,7 @@ def video_cut(input_video: str, start=None, end=None) -> str:
         if start >= end:
             return f"Error: Start Time ({start}) >= End Time ({end})"
 
-    output_video = os.path.splitext(input_video)[0] + "__cut.mp4"
+    output_video = output_video or os.path.splitext(input_video)[0] + "__cut.mp4"
 
     try:
         if start:
@@ -274,20 +276,20 @@ def video_compress(video_path: str, output_filename: str = "", target_bitrate: i
         return f"Error: {str(e)}"
 
 
-def videos_concat(videos: list[str]) -> str:
+def videos_concat(videos: list[str], output_video: str | None = None) -> str:
     """
     Concatenate multiple video files using FFmpeg's concat protocol
 
     This method is especially useful for concatenating files with different codecs.
 
     :param videos: list of video paths
+    :param output_video: output path (default: <first video>__concat.mp4)
     :return: path to the output concatenated video file
     """
     if not videos or len(videos) < 2:
         return "Error: At least two videos are required for concatenation"
 
-    base_name = os.path.splitext(videos[0])[0]
-    output_video = f"{base_name}__concat.mp4"
+    output_video = output_video or os.path.splitext(videos[0])[0] + "__concat.mp4"
 
     try:
         # Create intermediate inputs
@@ -315,20 +317,71 @@ def videos_concat(videos: list[str]) -> str:
         return f"Error: {str(e)}"
 
 
-def multiple_cuts_plus_concatenate(video_path: str, times: list[tuple[str, str|None]]) -> str:
-    video_paths = []
+END_TOLERANCE = 0.5  # seconds: an end typed as the rounded duration is accepted
+
+
+def _hms(seconds: float) -> str:
+    seconds = int(seconds)
+    return f"{seconds // 3600:02d}:{seconds % 3600 // 60:02d}:{seconds % 60:02d}"
+
+
+def validate_segments(times: list[tuple[str | None, str | None]], duration: float | None) -> list[str]:
+    """
+    Check every segment before cutting anything: one message per problem, all at once.
+    Order and overlaps are not checked (segments can be reordered on purpose).
+    An empty end is allowed only for the last segment (until the end of the video).
+    :param duration: video duration in seconds, None to skip the checks against it
+    """
+    errors = []
+    for i, (start, end) in enumerate(times, start=1):
+        start_s = to_seconds(start) if start not in (None, "") else None
+        if start in (None, ""):
+            errors.append(f"segment {i}: missing start")
+        elif start_s is None:
+            errors.append(f"segment {i}: invalid start {start!r}")
+
+        end_s = None
+        if end in (None, ""):
+            if i != len(times):
+                errors.append(f"segment {i}: missing end (only the last segment can go to the end of the video)")
+        else:
+            end_s = to_seconds(end)
+            if end_s is None:
+                errors.append(f"segment {i}: invalid end {end!r}")
+
+        if start_s is not None and end_s is not None and start_s >= end_s:
+            errors.append(f"segment {i}: start {_hms(start_s)} >= end {_hms(end_s)}")
+        if duration:
+            if start_s is not None and start_s >= duration:
+                errors.append(f"segment {i}: start {_hms(start_s)} is after the end of the video ({_hms(duration)})")
+            if end_s is not None and end_s > duration + END_TOLERANCE:
+                errors.append(f"segment {i}: end {_hms(end_s)} is after the end of the video ({_hms(duration)})")
+    return errors
+
+
+def multiple_cuts_plus_concatenate(video_path: str, times: list[tuple[str, str | None]]) -> str:
+    """
+    Cut every segment next to the video (<video>__cut__<i>.mp4, kept for later edits),
+    then join them into <video>__concat.mp4. Nothing is cut if one segment is invalid.
+    """
+    errors = validate_segments(times, _duration_or_none(video_path))
+    if errors:
+        return "Error: invalid segments\n" + "\n".join(errors)
+
+    base = os.path.splitext(video_path)[0]
+    final = base + "__concat.mp4"
     n = len(times)
     padding = len(str(n))
+    segments = []
     for i, (start, end) in enumerate(times):
+        segment = f"{base}__cut__{i:0{padding}}.mp4"
         # one line per step on the progress board
-        path = run_task(f"segment {i + 1}/{n}", video_cut, video_path, start, end)
-        if os.path.exists(path):
-            new_name = os.path.splitext(path)[0] + f"__{i:0{padding}}.mp4"
-            os.replace(path, new_name)
-            video_paths.append(new_name)
-        else:
-            # error during cut
+        path = run_task(f"segment {i + 1}/{n}", video_cut, video_path, start, end, output_video=segment)
+        if not os.path.isfile(path):
             return f"Error with parameters: start={start} end={end}: {path}"
-    if len(video_paths) == 1:
-        return video_paths[0]
-    return run_task("concaténation", videos_concat, video_paths)
+        segments.append(path)
+
+    if len(segments) == 1:
+        shutil.copyfile(segments[0], final)  # same name as with several segments
+        return final
+    return run_task("concaténation", videos_concat, segments, output_video=final)

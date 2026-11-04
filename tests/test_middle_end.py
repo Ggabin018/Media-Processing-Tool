@@ -244,10 +244,14 @@ def test_cut_and_concate_last_segment_to_end(files, fake_cuts):
 @pytest.mark.parametrize("starts, ends, expected", [
     ("0\n4\n8", "2", "starts=3 != ends=1"),
     ("0", "2\n4\n6", "starts=1 != ends=3"),
-    ("abc", "2", "invalid time 'abc'"),
-    ("0", "1:2", "invalid time '1:2'"),
     ("", "", "no start time"),
 ])
-def test_cut_and_concate_bad_times(files, fake_cuts, starts, ends, expected):
+def test_cut_and_concate_bad_structure(files, fake_cuts, starts, ends, expected):
     assert run_cc(files["video"], starts, ends) == f"Error: {expected}"  # exactly one "Error:" prefix
     assert fake_cuts == []
+
+
+def test_cut_and_concate_values_are_checked_by_the_back_end(files, fake_cuts):
+    # typos are not rejected line by line here: validate_segments reports them all at once
+    run_cc(files["video"], "abc\n4", "2\n1:2")
+    assert fake_cuts == [[("abc", "2"), ("4", "1:2")]]

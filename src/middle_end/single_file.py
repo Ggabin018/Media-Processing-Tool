@@ -1,6 +1,5 @@
 import gradio as gr
 
-from toolbox.utils import to_seconds
 from toolbox.paths import require_file
 from toolbox.progress import run_task, task_name
 from toolbox.wrapper import exception_as_str
@@ -45,12 +44,11 @@ def compress_vid(video_path: str, bitrate: int = 8000, min_res: str = "1080", vc
 
 
 def parse_input(input_str: str | None) -> list[str]:
-    """One time per line (seconds or HH:MM:SS). Empty lines are ignored."""
-    lines = [line.strip() for line in (input_str or "").splitlines() if line.strip()]
-    for line in lines:
-        if to_seconds(line) is None:
-            raise ValueError(f"invalid time {line!r}")
-    return lines
+    """
+    One time per line (seconds or HH:MM:SS). Empty lines are ignored.
+    Values are checked later, all at once, by back_end.video_manip.validate_segments.
+    """
+    return [line.strip() for line in (input_str or "").splitlines() if line.strip()]
 
 
 @exception_as_str()
