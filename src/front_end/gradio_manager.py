@@ -1,8 +1,11 @@
 import datetime
+import logging
+import os
 import signal
 import sys
 
 import gradio as gr
+from fastapi.responses import Response
 
 from middle_end.directory import *
 from middle_end.single_file import *
@@ -14,6 +17,7 @@ from toolbox.tkinter_getters import *
 from toolbox.os_open import open_file, reveal_in_folder
 from toolbox.paths import require_file, require_dir
 from toolbox.progress import first_line
+from toolbox.lifecycle import TabWatcher, TAB_SCRIPT, ALIVE_PATH, CLOSED_PATH
 from back_end.video_manip import get_video_duration
 from gradio_timesegments import TimeSegments
 
@@ -120,7 +124,9 @@ def open_dir_button(dir_path: gr.Textbox) -> None:
 
 class GradioManager:
     def __init__(self):
-        with gr.Blocks(title="Media Processing Tool", head=js) as self.interface:
+        # the app stops when its last browser tab is closed (after the running job, if any)
+        self.watcher = TabWatcher(on_idle=self.shutdown)
+        with gr.Blocks(title="Media Processing Tool", head=js + TAB_SCRIPT) as self.interface:
             gr.Markdown("# Video & Audio Processing Tool")
 
             with gr.Tab("Single Video"):
@@ -476,6 +482,29 @@ class GradioManager:
                 ])
 
     def launch(self):
-        self.interface.launch(inbrowser=True)
+        self.interface.launch(inbrowser=True, prevent_thread_lock=True)
+        self.add_tab_routes(self.interface.app)
+        self.watcher.start()
+        self.interface.block_thread()
+
+    def add_tab_routes(self, app):
+        """Routes pinged by TAB_SCRIPT, on the FastAPI app (it only exists once launched)."""
+        def alive(tab: str):
+            self.watcher.alive(tab)
+            return Response(status_code=204)
+
+        def closed(tab: str):
+            self.watcher.closed(tab)
+            return Response(status_code=204)
+
+        app.add_api_route(ALIVE_PATH, alive, methods=["GET"], include_in_schema=False)
+        app.add_api_route(CLOSED_PATH, closed, methods=["POST"], include_in_schema=False)
+
+    def shutdown(self):
+        logging.info("No browser tab left: stopping the app")
+        try:
+            self.interface.close()
+        finally:
+            os._exit(0)  # called from the watcher thread: sys.exit would only end that thread
 
 # endregion

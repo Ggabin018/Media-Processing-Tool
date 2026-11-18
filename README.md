@@ -98,10 +98,20 @@ FFMPEG as editor.
 ## Starting GUI
 
 ### Windows
+Double-click `webui.vbs`: the app opens in the browser, without any console window.
+Logs go to `logs\app.log`.
+
+For debugging, `webui.bat` starts it with a console:
+
     .\webui.bat
 
 ### ubuntu
     ./webui.sh
+
+### Stopping
+The app stops by itself when its last browser tab is closed (10 s later, so a page refresh does
+not stop it). A running processing is never interrupted: the app stops once it is finished.
+If the browser crashes without closing the tab properly, the app stops after about 2 minutes.
 
 # Codecs Information
 ## Video Codecs:

@@ -3,6 +3,7 @@ import contextvars
 import threading
 from typing import Callable, Iterator
 
+from toolbox.lifecycle import track_job
 from toolbox.progress import ProgressBoard, current_board
 
 POLL_SECONDS = 0.5
@@ -21,10 +22,12 @@ def run_live(job: Callable[[], str], progress=None, label: str = "Fichiers",
 
     def target():
         current_board.set(board)
-        try:
-            outcome["value"] = job()
-        except Exception as e:
-            outcome["error"] = e
+        # The job goes on even if the tab is closed (the app waits for it)
+        with track_job():
+            try:
+                outcome["value"] = job()
+            except Exception as e:
+                outcome["error"] = e
 
     # copy_context: the job thread keeps the caller's ContextVars (and gets its own board)
     thread = threading.Thread(target=contextvars.copy_context().run, args=(target,), daemon=True)
